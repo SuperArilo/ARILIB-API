@@ -67,6 +67,7 @@ public class PublicFunctionUtils {
     public static boolean checkServerVersion() {
         boolean versionAtLeast = isVersionAtLeast(Bukkit.getServer().getBukkitVersion().split("-")[0]);
         if (!versionAtLeast) {
+            //noinspection UnstableApiUsage
             Bukkit.getLogger().log(Level.SEVERE, "Server version is too low. This plugin requires at least 1.21.3. Disabling plugin...");
             return false;
         }
