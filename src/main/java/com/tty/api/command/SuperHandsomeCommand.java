@@ -5,5 +5,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 
 
 public interface SuperHandsomeCommand {
+
     CommandNode<CommandSourceStack> toBrigadier();
+
 }

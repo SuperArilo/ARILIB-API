@@ -27,7 +27,6 @@ public class ConfigInstance {
         return getValue(keyPath, filePath, String.class, "null");
     }
 
-
     public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Class<T> tClass) {
         if (checkPath(keyPath)) return null;
         YamlConfiguration configuration = checkConfiguration(filePath);
@@ -104,4 +103,5 @@ public class ConfigInstance {
     public void clearConfigs() {
         CONFIGS.clear();
     }
+
 }

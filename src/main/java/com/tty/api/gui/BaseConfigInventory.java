@@ -37,7 +37,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(this, this.baseInstance.getRow() * 9, this.componentService.text(this.baseInstance.getTitle()));
+        return Bukkit.createInventory(this, this.baseInstance.getRow() * 9, this.componentService.text(this.baseInstance.getTitle(), this.player));
     }
 
     public void open() {
