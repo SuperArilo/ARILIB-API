@@ -23,11 +23,11 @@ import java.util.Map;
 public abstract class BaseConfigInventory extends BaseInventory {
 
     @Getter
-    private final BaseMenu baseMenu;
-    protected final Player player;
-    private final JavaPlugin plugin;
-    private final NamespacedKey renderType;
-    protected final ComponentService componentService;
+    private BaseMenu baseMenu;
+    protected Player player;
+    private JavaPlugin plugin;
+    private NamespacedKey renderType;
+    protected ComponentService componentService;
 
     public BaseConfigInventory(JavaPlugin plugin, Player player, ComponentService componentService) {
         this.baseMenu = this.config();
@@ -117,5 +117,14 @@ public abstract class BaseConfigInventory extends BaseInventory {
      */
     protected <T> void setNBT(@NotNull ItemMeta itemMeta, String key, PersistentDataType<T, T> type, T value) {
         itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.plugin, key), type, value);
+    }
+
+    @Override
+    public void clean() {
+        this.baseMenu = null;
+        this.player = null;
+        this.renderType = null;
+        this.plugin = null;
+        this.componentService = null;
     }
 }
