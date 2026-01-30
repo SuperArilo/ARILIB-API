@@ -25,119 +25,126 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     protected int pageNum = 1;
     protected List<T> data;
-
-    protected PageResult<T> lastPageResult = null;
+    protected PageResult<T> lastPageResult;
 
     protected volatile boolean loading = false;
+
+    private List<Integer> prevSlots = List.of();
+    private List<Integer> nextSlots = List.of();
+
+    private ItemStack prevOrigin;
+    private ItemStack nextOrigin;
 
     public BaseDataItemConfigInventory(JavaPlugin plugin, Player player, ComponentService service) {
         super(plugin, player, service);
     }
 
-    /**
-     * 上一页
-     */
-    public void prev() {
-        if (this.loading) return;
-        if (this.pageNum <= 1) {
-            return;
-        }
-        this.pageNum--;
-        this.renderFunctionItems();
-        this.requestAndAccept(result -> {
-            this.lastPageResult = result;
-            this.data = result.records();
-            this.renderDataItem();
-            this.checkDisable(result);
-        });
-    }
-
-    /**
-     * 下一页
-     */
-    public void next() {
-        if (this.loading) return;
-        if (this.lastPageResult != null && this.pageNum >= this.lastPageResult.totalPages()) {
-            return;
-        }
-        this.pageNum++;
-        this.renderFunctionItems();
-        this.requestAndAccept(result -> {
-            if (result.totalPages() > 0 && this.pageNum > result.totalPages()) {
-                this.pageNum = Math.toIntExact(result.totalPages());
-                return;
-            }
-            this.lastPageResult = result;
-            this.data = result.records();
-            this.renderDataItem();
-            this.checkDisable(result);
-        });
-    }
-
     @Override
     protected void beforeCreate() {
         super.beforeCreate();
-        this.renderFunctionItems();
-        this.requestAndAccept(result -> {
-            this.lastPageResult = result;
-            this.data = result.records();
-            this.renderDataItem();
-            this.checkDisable(result);
+        this.cachePageButtons();
+        this.requestAndAccept(this::applyPageResult);
+    }
+
+    private void cachePageButtons() {
+        BaseDataMenu menu = (BaseDataMenu) config();
+        menu.getFunctionItems().forEach((k, v) -> {
+            if (v.getType() == FunctionType.PREV) {
+                this.prevSlots = v.getSlot();
+                this.prevOrigin = this.cloneFromInventory(this.prevSlots);
+            }
+            if (v.getType() == FunctionType.NEXT) {
+                this.nextSlots = v.getSlot();
+                this.nextOrigin = this.cloneFromInventory(this.nextSlots);
+            }
         });
+    }
+
+    private ItemStack cloneFromInventory(List<Integer> slots) {
+        if (slots == null || slots.isEmpty()) return null;
+        ItemStack item = this.inventory.getItem(slots.getFirst());
+        return item == null ? null : item.clone();
+    }
+
+    public void prev() {
+        if (this.loading || this.pageNum <= 1) return;
+        this.pageNum--;
+        requestAndAccept(this::applyPageResult);
+    }
+
+    public void next() {
+        if (this.loading) return;
+        if (this.lastPageResult != null && this.pageNum >= this.lastPageResult.totalPages()) return;
+        this.pageNum++;
+        requestAndAccept(this::applyPageResult);
     }
 
     protected abstract CompletableFuture<PageResult<T>> requestData();
 
     protected abstract Map<Integer, ItemStack> getRenderItem();
 
-    private void requestAndAccept(Consumer<PageResult<T>> onSuccess) {
-        CompletableFuture<PageResult<T>> future = this.requestData();
+    private void requestAndAccept(Consumer<PageResult<T>> consumer) {
+        CompletableFuture<PageResult<T>> future = requestData();
         if (future == null) {
-            PageResult<T> empty = PageResult.build(List.of(), 0, 0, this.pageNum);
-            this.lastPageResult = empty;
-            onSuccess.accept(empty);
-            Log.warn("{}: requestData returned null, using empty result", this.getType());
+            consumer.accept(PageResult.build(List.of(), 0, 0, pageNum));
             return;
         }
 
         this.loading = true;
         future.thenAccept(result -> {
             try {
-                if (result != null) this.lastPageResult = result;
-                onSuccess.accept(result != null ? result : PageResult.build(List.of(), 0, 0, this.pageNum));
-            } catch (Exception e) {
-                Log.error(e, "{}: processing request result error!", this.getType());
+                consumer.accept(result);
             } finally {
                 this.loading = false;
             }
         }).exceptionally(ex -> {
-            Log.error(ex, "{}: request data error!", this.getType());
+            Log.error(ex, "requestData error");
             this.loading = false;
             return null;
         });
     }
 
+    private void applyPageResult(PageResult<T> result) {
+        this.lastPageResult = result;
+        this.data = result.records();
+        renderDataItem();
+        updatePageButtons(result);
+    }
+
     private void renderDataItem() {
         if (this.inventory == null) return;
-        long l = System.currentTimeMillis();
-        Map<Integer, ItemStack> renderItem;
-        try {
-            renderItem = this.getRenderItem();
-        } catch (Exception e) {
-            Log.error("get render item error.", e);
-            return;
-        }
-        if (renderItem == null || renderItem.isEmpty()) return;
-        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
-        for (Integer index : baseDataMenu.getDataItems().getSlot()) {
-            if (this.inventory == null) return;
-            // 先清除位置
-            this.inventory.clear(index);
-            if (renderItem.containsKey(index)) {
-                this.inventory.setItem(index, renderItem.get(index));
+        Map<Integer, ItemStack> renderItem = getRenderItem();
+        if (renderItem == null) return;
+
+        BaseDataMenu menu = (BaseDataMenu) config();
+        for (Integer slot : menu.getDataItems().getSlot()) {
+            this.inventory.clear(slot);
+            ItemStack item = renderItem.get(slot);
+            if (item != null) {
+                this.inventory.setItem(slot, item);
             }
         }
-        Log.debug("{}: submit render task time: {}ms", this.getType(), (System.currentTimeMillis() - l));
+    }
+
+    private void updatePageButtons(PageResult<T> result) {
+        long total = result.totalPages();
+
+        boolean disablePrev = this.pageNum <= 1;
+        boolean disableNext = total <= 1 || this.pageNum >= total;
+
+        this.updateFunction(this.prevSlots, this.prevOrigin, disablePrev);
+        this.updateFunction(this.nextSlots, this.nextOrigin, disableNext);
+    }
+
+    private void updateFunction(List<Integer> slots, ItemStack origin, boolean disable) {
+        if (slots == null || slots.isEmpty()) return;
+        if (disable) {
+            setDisablePageFunction(slots);
+        } else if (origin != null) {
+            for (Integer slot : slots) {
+                this.inventory.setItem(slot, origin.clone());
+            }
+        }
     }
 
     /**
@@ -170,43 +177,10 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     public void clean() {
         this.data = null;
         this.lastPageResult = null;
-    }
-
-    /**
-     * 检查并设置翻页按钮的禁用状态
-     */
-    private void checkDisable(PageResult<T> result) {
-        this.renderFunctionItems();
-        long totalPages = result.totalPages();
-        if (totalPages <= 1) {
-            this.setPrevDisable();
-            this.setNextDisable();
-        } else {
-            if (this.pageNum <= 1) {
-                this.setPrevDisable();
-            }
-            if (this.pageNum >= totalPages) {
-                this.setNextDisable();
-            }
-        }
-    }
-
-    private void setPrevDisable() {
-        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
-        baseDataMenu.getFunctionItems().forEach(((k, v) -> {
-            if (v.getType().equals(FunctionType.PREV)) {
-                this.setDisablePageFunction(v.getSlot());
-            }
-        }));
-    }
-
-    private void setNextDisable() {
-        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
-        baseDataMenu.getFunctionItems().forEach(((k, v) -> {
-            if (v.getType().equals(FunctionType.NEXT)) {
-                this.setDisablePageFunction(v.getSlot());
-            }
-        }));
+        this.prevOrigin = null;
+        this.nextOrigin = null;
+        this.prevSlots = null;
+        this.nextSlots = null;
     }
 
     private void setDisablePageFunction(List<Integer> slots) {
