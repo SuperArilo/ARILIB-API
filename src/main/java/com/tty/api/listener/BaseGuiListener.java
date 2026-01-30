@@ -1,6 +1,7 @@
 package com.tty.api.listener;
 
 import com.tty.api.Log;
+import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiType;
 import com.tty.api.gui.BaseConfigInventory;
@@ -45,8 +46,10 @@ public abstract class BaseGuiListener implements Listener {
         }
 
         if (clickedHolder == null) return;
-
-        boolean isCustomGui = clickedHolder.type.equals(this.guiType);
+        GuiMeta annotation = clickedHolder.getClass().getAnnotation(GuiMeta.class);
+        if (annotation == null) return;
+        GuiType type = annotation.type();
+        boolean isCustomGui = type.equals(this.guiType);
         if (clickedInventory.equals(topInventory) && isCustomGui) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null) return;
@@ -60,10 +63,11 @@ public abstract class BaseGuiListener implements Listener {
         InventoryView view = event.getView();
         Inventory topInventory = view.getTopInventory();
 
-        if (!(topInventory.getHolder() instanceof BaseConfigInventory holder &&
-                holder.type.equals(this.guiType))) {
-            return;
-        }
+        if (!(topInventory.getHolder() instanceof BaseConfigInventory holder)) return;
+
+        GuiMeta annotation = holder.getClass().getAnnotation(GuiMeta.class);
+        if (annotation == null) return;
+        if (!annotation.type().equals(this.guiType)) return;
 
         int topSize = topInventory.getSize();
         for (int rawSlot : event.getRawSlots()) {

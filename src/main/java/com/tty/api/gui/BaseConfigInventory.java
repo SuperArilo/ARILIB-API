@@ -3,16 +3,14 @@ package com.tty.api.gui;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
-import com.tty.api.enumType.GuiType;
-import com.tty.api.Log;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.service.ComponentService;
+import lombok.Getter;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -24,72 +22,76 @@ import java.util.Map;
 
 public abstract class BaseConfigInventory extends BaseInventory {
 
-    public BaseMenu baseInstance;
+    @Getter
+    private final BaseMenu baseMenu;
+    protected final Player player;
+    private final JavaPlugin plugin;
     private final NamespacedKey renderType;
     protected final ComponentService componentService;
 
-    public BaseConfigInventory(JavaPlugin plugin, BaseMenu instance, Player player, GuiType type, ComponentService componentService) {
-        super(plugin, player, type);
+    public BaseConfigInventory(JavaPlugin plugin, Player player, ComponentService componentService) {
+        this.baseMenu = this.config();
+        this.plugin = plugin;
+        this.player = player;
         this.renderType = new NamespacedKey(plugin, "type");
-        this.baseInstance = instance;
         this.componentService = componentService;
     }
 
     @Override
-    protected Inventory createInventory() {
-        return Bukkit.createInventory(this, this.baseInstance.getRow() * 9, this.componentService.text(this.baseInstance.getTitle(), this.player));
-    }
-
-    public void open() {
-        super.open();
+    protected void beforeCreate() {
         this.renderMasks();
         this.renderFunctionItems();
-        this.afterOpen();
     }
 
-    protected abstract void afterOpen();
+    @Override
+    protected @NotNull Component title() {
+        return this.componentService.text(this.config().getTitle(), this.player);
+    }
+
+    @Override
+    protected int size() {
+        return this.config().getRow() * 9;
+    }
+
+    protected abstract @NotNull BaseMenu config();
 
     protected abstract Mask renderCustomMasks();
 
     protected abstract Map<String, FunctionItems> renderCustomFunctionItems();
 
     private void renderMasks() {
-        long l = System.currentTimeMillis();
         Mask mask = this.renderCustomMasks();
         if (mask == null) {
-            mask = this.baseInstance.getMask();
+            mask = this.config().getMask();
         }
-        List<TextComponent> collect = mask.getLore().stream().map(i -> this.componentService.text(i, player)).toList();
+        List<TextComponent> collect = mask.getLore().stream().map(this.componentService::text).toList();
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(this.componentService.text(mask.getName(), player));
+            itemMeta.displayName(this.componentService.text(mask.getName()));
             itemMeta.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.inventory.setItem(i, itemStack);
         }
-        Log.debug("{}: render masks: {}ms", this.type.name(), (System.currentTimeMillis() - l));
     }
 
     protected void renderFunctionItems() {
-        long l = System.currentTimeMillis();
         Map<String, FunctionItems> functionItems = this.renderCustomFunctionItems();
         if (functionItems == null || functionItems.isEmpty()) {
-            functionItems = this.baseInstance.getFunctionItems();
+            functionItems = this.config().getFunctionItems();
         }
         functionItems.forEach((k, v) -> {
             ItemStack o = ItemStack.of(Material.valueOf(v.getMaterial().toUpperCase()));
             ItemMeta mo = o.getItemMeta();
-            mo.displayName(this.componentService.text(v.getName(), player));
-            mo.lore(v.getLore().stream().map(i -> this.componentService.text(i, player)).toList());
+            mo.displayName(this.componentService.text(v.getName()));
+            mo.lore(v.getLore().stream().map(this.componentService::text).toList());
             mo.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, v.getType().name());
             o.setItemMeta(mo);
             for (Integer integer : v.getSlot()) {
                 this.inventory.setItem(integer, o);
             }
         });
-        Log.debug("{}: render function items: {}ms", this.type.name(), (System.currentTimeMillis() - l));
     }
 
     protected String replaceKey(String content, Map<String, String> map) {
@@ -103,11 +105,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
             }
         }
         return result;
-    }
-
-    @Override
-    public void clean() {
-        this.baseInstance = null;
     }
 
     /**

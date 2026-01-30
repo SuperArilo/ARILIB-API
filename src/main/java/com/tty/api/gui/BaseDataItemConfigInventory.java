@@ -4,7 +4,6 @@ import com.tty.api.dto.PageResult;
 import com.tty.api.dto.gui.BaseDataMenu;
 import com.tty.api.dto.gui.PageDisable;
 import com.tty.api.enumType.FunctionType;
-import com.tty.api.enumType.GuiType;
 import com.tty.api.Log;
 import com.tty.api.service.ComponentService;
 import org.bukkit.Material;
@@ -25,18 +24,14 @@ import java.util.function.Consumer;
 public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory {
 
     protected int pageNum = 1;
-    protected final int pageSize;
-    public final BaseDataMenu baseDataInstance;
     protected List<T> data;
 
     protected PageResult<T> lastPageResult = null;
 
     protected volatile boolean loading = false;
 
-    public BaseDataItemConfigInventory(JavaPlugin plugin, BaseDataMenu baseDataInstance, Player player, GuiType type, ComponentService service) {
-        super(plugin, baseDataInstance, player, type, service);
-        this.baseDataInstance = baseDataInstance;
-        this.pageSize = baseDataInstance.getDataItems().getSlot().size();
+    public BaseDataItemConfigInventory(JavaPlugin plugin, Player player, ComponentService service) {
+        super(plugin, player, service);
     }
 
     /**
@@ -80,7 +75,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected void afterOpen() {
+    protected void beforeCreate() {
+        super.beforeCreate();
         this.renderFunctionItems();
         this.requestAndAccept(result -> {
             this.lastPageResult = result;
@@ -100,7 +96,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             PageResult<T> empty = PageResult.build(List.of(), 0, 0, this.pageNum);
             this.lastPageResult = empty;
             onSuccess.accept(empty);
-            Log.warn("{}: requestData returned null, using empty result", this.type.name());
+            Log.warn("{}: requestData returned null, using empty result", this.getType());
             return;
         }
 
@@ -110,16 +106,12 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
                 if (result != null) this.lastPageResult = result;
                 onSuccess.accept(result != null ? result : PageResult.build(List.of(), 0, 0, this.pageNum));
             } catch (Exception e) {
-                Log.error(e, "{}: processing request result error!", this.type.name());
-                // 显示错误给玩家
-                if (this.player != null && this.player.isOnline()) {
-                    this.player.sendMessage("§c加载数据时发生错误，请稍后重试");
-                }
+                Log.error(e, "{}: processing request result error!", this.getType());
             } finally {
                 this.loading = false;
             }
         }).exceptionally(ex -> {
-            Log.error(ex, "{}: request data error!", this.type.name());
+            Log.error(ex, "{}: request data error!", this.getType());
             this.loading = false;
             return null;
         });
@@ -136,8 +128,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             return;
         }
         if (renderItem == null || renderItem.isEmpty()) return;
-
-        for (Integer index : this.baseDataInstance.getDataItems().getSlot()) {
+        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
+        for (Integer index : baseDataMenu.getDataItems().getSlot()) {
             if (this.inventory == null) return;
             // 先清除位置
             this.inventory.clear(index);
@@ -145,7 +137,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
                 this.inventory.setItem(index, renderItem.get(index));
             }
         }
-        Log.debug("{}: submit render task time: {}ms", this.type.name(), (System.currentTimeMillis() - l));
+        Log.debug("{}: submit render task time: {}ms", this.getType(), (System.currentTimeMillis() - l));
     }
 
     /**
@@ -176,7 +168,6 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     @Override
     public void clean() {
-        super.clean();
         this.data = null;
         this.lastPageResult = null;
     }
@@ -201,7 +192,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     private void setPrevDisable() {
-        this.baseDataInstance.getFunctionItems().forEach(((k, v) -> {
+        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
+        baseDataMenu.getFunctionItems().forEach(((k, v) -> {
             if (v.getType().equals(FunctionType.PREV)) {
                 this.setDisablePageFunction(v.getSlot());
             }
@@ -209,7 +201,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     private void setNextDisable() {
-        this.baseDataInstance.getFunctionItems().forEach(((k, v) -> {
+        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
+        baseDataMenu.getFunctionItems().forEach(((k, v) -> {
             if (v.getType().equals(FunctionType.NEXT)) {
                 this.setDisablePageFunction(v.getSlot());
             }
@@ -217,7 +210,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     private void setDisablePageFunction(List<Integer> slots) {
-        PageDisable pageDisable = this.baseDataInstance.getPageDisable();
+        BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
+        PageDisable pageDisable = baseDataMenu.getPageDisable();
         if (pageDisable == null) {
             Log.warn("pageDisable config is null, cannot disable page button");
             return;
@@ -225,7 +219,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         try {
             ItemStack itemStack = ItemStack.of(Material.valueOf(pageDisable.getMaterial()));
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(this.componentService.text(pageDisable.getName(), player));
+            itemMeta.displayName(this.componentService.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
             for (Integer slot : slots) {
                 if (this.inventory != null) {

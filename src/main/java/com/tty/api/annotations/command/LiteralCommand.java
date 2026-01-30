@@ -1,4 +1,4 @@
-package com.tty.api.annotations;
+package com.tty.api.annotations.command;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

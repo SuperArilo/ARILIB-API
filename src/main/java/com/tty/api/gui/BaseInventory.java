@@ -1,41 +1,40 @@
 package com.tty.api.gui;
 
-import com.tty.api.Log;
+import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.GuiType;
-import org.bukkit.entity.Player;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseInventory implements InventoryHolder {
 
-    public final JavaPlugin plugin;
-    public final Player player;
     protected Inventory inventory;
-    public final GuiType type;
-
-    public BaseInventory(JavaPlugin plugin, Player player, GuiType type) {
-        this.plugin = plugin;
-        this.player = player;
-        this.type = type;
-    }
-
-    public void open() {
-        this.inventory = this.createInventory();
-        if (this.inventory == null) {
-            Log.error("player {} open inventory error. because inventory is null.");
-            return;
-        }
-        this.player.openInventory(this.inventory);
-    }
 
     @Override
     public @NotNull Inventory getInventory() {
+        if (this.size() < 9) {
+            throw new IllegalArgumentException("inventory size must be >= 9");
+        }
+        this.inventory = Bukkit.createInventory(this, this.size(), this.title());
+        this.beforeCreate();
         return this.inventory;
     }
 
-    protected abstract Inventory createInventory();
+    protected abstract int size();
+
+    protected abstract @NotNull Component title();
+
+    protected abstract void beforeCreate();
+
+    public GuiType getType() {
+        GuiMeta annotation = this.getClass().getAnnotation(GuiMeta.class);
+        if (annotation == null) {
+            throw new NullPointerException("gui type is null");
+        }
+        return annotation.type();
+    }
 
     public abstract void clean();
 
