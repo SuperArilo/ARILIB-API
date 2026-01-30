@@ -217,7 +217,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             return;
         }
         try {
-            ItemStack itemStack = ItemStack.of(Material.valueOf(pageDisable.getMaterial()));
+            ItemStack itemStack = ItemStack.of(Material.valueOf(pageDisable.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
             itemMeta.displayName(this.componentService.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
