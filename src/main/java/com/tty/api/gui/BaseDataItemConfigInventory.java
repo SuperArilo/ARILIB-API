@@ -49,11 +49,11 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     private void cachePageButtons() {
         BaseDataMenu menu = (BaseDataMenu) config();
         menu.getFunctionItems().forEach((k, v) -> {
-            if (v.getType() == FunctionType.PREV) {
+            if (v.getType() == FunctionType.PREV_PAGE) {
                 this.prevSlots = v.getSlot();
                 this.prevOrigin = this.cloneFromInventory(this.prevSlots);
             }
-            if (v.getType() == FunctionType.NEXT) {
+            if (v.getType() == FunctionType.NEXT_PAGE) {
                 this.nextSlots = v.getSlot();
                 this.nextOrigin = this.cloneFromInventory(this.nextSlots);
             }
@@ -112,6 +112,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     private void renderDataItem() {
+        long l = System.currentTimeMillis();
         if (this.inventory == null) return;
         Map<Integer, ItemStack> renderItem = getRenderItem();
         if (renderItem == null) return;
@@ -124,6 +125,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
                 this.inventory.setItem(slot, item);
             }
         }
+        Log.debug("render data item time: {} ms, type: {}", (System.currentTimeMillis() -l), this.getType());
     }
 
     private void updatePageButtons(PageResult<T> result) {

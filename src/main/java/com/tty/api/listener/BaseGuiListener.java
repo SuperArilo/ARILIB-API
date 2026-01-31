@@ -3,7 +3,7 @@ package com.tty.api.listener;
 import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
-import com.tty.api.enumType.GuiType;
+import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseConfigInventory;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,9 +16,9 @@ import org.bukkit.inventory.InventoryView;
 
 public abstract class BaseGuiListener implements Listener {
 
-    protected final GuiType guiType;
+    protected final GuiKeyEnum guiType;
 
-    protected BaseGuiListener(GuiType guiType) {
+    protected BaseGuiListener(GuiKeyEnum guiType) {
         this.guiType = guiType;
     }
 
@@ -48,8 +48,7 @@ public abstract class BaseGuiListener implements Listener {
         if (clickedHolder == null) return;
         GuiMeta annotation = clickedHolder.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
-        GuiType type = annotation.type();
-        boolean isCustomGui = type.equals(this.guiType);
+        boolean isCustomGui = annotation.type().equals(this.guiType.getType());
         if (clickedInventory.equals(topInventory) && isCustomGui) {
             event.setCancelled(true);
             if (event.getCurrentItem() == null) return;
@@ -67,7 +66,7 @@ public abstract class BaseGuiListener implements Listener {
 
         GuiMeta annotation = holder.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
-        if (!annotation.type().equals(this.guiType)) return;
+        if (!annotation.type().equals(this.guiType.getType())) return;
 
         int topSize = topInventory.getSize();
         for (int rawSlot : event.getRawSlots()) {

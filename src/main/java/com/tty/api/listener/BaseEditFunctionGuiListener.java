@@ -3,7 +3,7 @@ package com.tty.api.listener;
 import com.tty.api.FormatUtils;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
-import com.tty.api.enumType.GuiType;
+import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
 import com.tty.api.state.PlayerEditGuiState;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -13,7 +13,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 
 public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
 
-    protected BaseEditFunctionGuiListener(GuiType guiType) {
+    protected BaseEditFunctionGuiListener(GuiKeyEnum guiType) {
         super(guiType);
     }
 
@@ -28,7 +28,7 @@ public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
         BaseInventory i = state.getI();
         GuiMeta annotation = i.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
-        if (!annotation.type().equals(this.guiType)) return;
+        if (!annotation.type().equals(this.guiType.getType())) return;
         event.setCancelled(true);
         String message = FormatUtils.componentToString(event.message());
 

@@ -1,7 +1,6 @@
 package com.tty.api.gui;
 
 import com.tty.api.annotations.gui.GuiMeta;
-import com.tty.api.enumType.GuiType;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
@@ -28,7 +27,7 @@ public abstract class BaseInventory implements InventoryHolder {
 
     protected abstract void beforeCreate();
 
-    public GuiType getType() {
+    public String getType() {
         GuiMeta annotation = this.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) {
             throw new NullPointerException("gui type is null");

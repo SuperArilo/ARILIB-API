@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.tty.api.Log;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
@@ -60,6 +61,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     protected abstract Map<String, FunctionItems> renderCustomFunctionItems();
 
     private void renderMasks() {
+        long l = System.currentTimeMillis();
         Mask mask = this.renderCustomMasks();
         if (mask == null) {
             mask = this.config().getMask();
@@ -74,24 +76,32 @@ public abstract class BaseConfigInventory extends BaseInventory {
             itemStack.setItemMeta(itemMeta);
             this.inventory.setItem(i, itemStack);
         }
+        Log.debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     protected void renderFunctionItems() {
+        long l = System.currentTimeMillis();
         Map<String, FunctionItems> functionItems = this.renderCustomFunctionItems();
         if (functionItems == null || functionItems.isEmpty()) {
             functionItems = this.config().getFunctionItems();
         }
         functionItems.forEach((k, v) -> {
+            FunctionType functionType = v.getType();
+            if (functionType == null) {
+                Log.error("render function item on {} error.", k);
+                return;
+            }
             ItemStack o = ItemStack.of(Material.valueOf(v.getMaterial().toUpperCase()));
             ItemMeta mo = o.getItemMeta();
             mo.displayName(this.componentService.text(v.getName()));
             mo.lore(v.getLore().stream().map(this.componentService::text).toList());
-            mo.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, v.getType().name());
+            mo.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, functionType.name());
             o.setItemMeta(mo);
             for (Integer integer : v.getSlot()) {
                 this.inventory.setItem(integer, o);
             }
         });
+        Log.debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     protected String replaceKey(String content, Map<String, String> map) {
@@ -127,4 +137,5 @@ public abstract class BaseConfigInventory extends BaseInventory {
         this.plugin = null;
         this.componentService = null;
     }
+
 }
