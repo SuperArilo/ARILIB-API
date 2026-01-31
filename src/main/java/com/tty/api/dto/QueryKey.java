@@ -3,14 +3,12 @@ package com.tty.api.dto;
 import com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
-import com.tty.api.Log;
 
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.stream.Collectors;
 
-// ai generated
-public final class QueryKey<T> {
+public final class QueryKey {
 
     private final Class<?> entityClass;
     private final String sqlSegmentSnapshot;
@@ -32,7 +30,8 @@ public final class QueryKey<T> {
         this.hashCode = readableCondition.hashCode();
     }
 
-    public static <T> QueryKey<T> of(LambdaQueryWrapper<T> wrapper) {
+    public static <T> QueryKey of(LambdaQueryWrapper<T> wrapper) {
+
         Objects.requireNonNull(wrapper, "wrapper must not be null");
 
         Class<?> entityClass = wrapper.getEntityClass();
@@ -44,7 +43,6 @@ public final class QueryKey<T> {
         try {
             rawSqlSegment = wrapper.getSqlSegment();
         } catch (Exception e) {
-            Log.error(e);
             rawSqlSegment = "";
         }
         String cleanedSqlSegment = cleanSqlSegment(rawSqlSegment);
@@ -58,7 +56,6 @@ public final class QueryKey<T> {
                 paramsSnapshot = new TreeMap<>(params);
             }
         } catch (Exception e) {
-            Log.error(e);
             paramsSnapshot = new TreeMap<>();
         }
 
@@ -66,11 +63,10 @@ public final class QueryKey<T> {
         try {
             orderBySqlSnapshot = extractOrderBySql(wrapper);
         } catch (Exception e) {
-            Log.error(e);
             orderBySqlSnapshot = "";
         }
 
-        return new QueryKey<>(entityClass, cleanedSqlSegment, paramsSnapshot, orderBySqlSnapshot);
+        return new QueryKey(entityClass, cleanedSqlSegment, paramsSnapshot, orderBySqlSnapshot);
     }
 
     private String buildReadableCondition() {
@@ -145,9 +141,7 @@ public final class QueryKey<T> {
                     return matches.getFirst();
                 }
             }
-        } catch (Throwable t) {
-            Log.error(t);
-        }
+        } catch (Throwable ignored) { }
 
         return paramKey;
     }
@@ -177,9 +171,7 @@ public final class QueryKey<T> {
                     }
                 }
             }
-        } catch (Throwable t) {
-            Log.error(t);
-        }
+        } catch (Throwable ignored) { }
         return "";
     }
 
@@ -209,7 +201,7 @@ public final class QueryKey<T> {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof QueryKey<?> that)) return false;
+        if (!(o instanceof QueryKey that)) return false;
         return Objects.equals(this.readableCondition, that.readableCondition);
     }
 

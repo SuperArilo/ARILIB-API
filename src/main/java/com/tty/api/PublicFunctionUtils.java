@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("UnstableApiUsage")
 public class PublicFunctionUtils {
 
     public static <T> void loadPlugin(String pluginName, Class<T> tClass, Consumer<T> consumer)  {
@@ -25,11 +26,11 @@ public class PublicFunctionUtils {
             if (registration != null) {
                 consumer.accept(registration.getProvider());
             } else {
-                Log.warn("failed to load plugin: {}. because {} is null", pluginName, pluginName);
+                Bukkit.getLogger().warning("failed to load class " + tClass.getName() + ". because " + pluginName + " is null");
                 consumer.accept(null);
             }
         } else {
-            Log.warn("failed to load plugin: {}.", pluginName);
+            Bukkit.getLogger().warning("failed to load class " + tClass.getName() + ". because " + pluginName + " not found.");
             consumer.accept(null);
         }
     }
@@ -112,21 +113,16 @@ public class PublicFunctionUtils {
      * @param caseSensitive true 小写，false 大写
      * @return 转换成功的枚举值列表，忽略无法转换的项
      */
-    public static  <T extends Enum<T>> List<T> convertStringListToEnumList(List<String> stringList, Class<T> enumClass, boolean caseSensitive) {
+    public static  <T extends Enum<T>> List<T> convertStringListToEnumList(List<String> stringList, Class<T> enumClass, boolean caseSensitive) throws IllegalArgumentException {
         List<T> result = new ArrayList<>();
         for (String item : stringList) {
             if (item == null || item.trim().isEmpty()) {
                 continue;
             }
             String cleanName = item.trim();
-            try {
-                String enumName = caseSensitive ? cleanName.toLowerCase() : cleanName.toUpperCase();
-                T enumValue = Enum.valueOf(enumClass, enumName);
-                result.add(enumValue);
-                Log.debug("Successfully converted {} to enum.", cleanName);
-            } catch (IllegalArgumentException e) {
-                Log.error("Invalid enum value: {} for enum class {}", cleanName, enumClass.getSimpleName());
-            }
+            String enumName = caseSensitive ? cleanName.toLowerCase() : cleanName.toUpperCase();
+            T enumValue = Enum.valueOf(enumClass, enumName);
+            result.add(enumValue);
         }
         return result;
     }

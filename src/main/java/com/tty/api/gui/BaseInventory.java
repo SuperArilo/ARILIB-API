@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -9,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseInventory implements InventoryHolder {
 
+    private Log log = Log.create();
     protected Inventory inventory;
 
     @Override
@@ -43,6 +45,15 @@ public abstract class BaseInventory implements InventoryHolder {
         }
         this.inventory = null;
         this.clean();
+        this.log = null;
+    }
+
+    protected Log getLog() {
+        return this.log;
+    }
+
+    protected void debug(boolean debug) {
+        this.log.setDebug(debug);
     }
 
 }

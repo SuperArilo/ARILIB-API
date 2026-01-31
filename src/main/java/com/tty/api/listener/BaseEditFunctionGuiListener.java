@@ -5,7 +5,7 @@ import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
-import com.tty.api.state.PlayerEditGuiState;
+import com.tty.api.state.EditGuiState;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,7 +23,7 @@ public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
     @EventHandler
     public void onPlayerChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
-        PlayerEditGuiState state = this.isHaveState(player);
+        EditGuiState state = this.isHaveState(player);
         if (state == null) return;
         BaseInventory i = state.getI();
         GuiMeta annotation = i.getClass().getAnnotation(GuiMeta.class);
@@ -47,7 +47,7 @@ public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
         }
     }
 
-    public abstract PlayerEditGuiState isHaveState(Player player);
+    public abstract EditGuiState isHaveState(Player player);
 
     /**
      * 检查玩家的输入内容
@@ -55,7 +55,7 @@ public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
      * @param state 玩家的输入状态类
      * @return true 检查通过，反之
      */
-    public abstract boolean onTitleEditStatus(String message, PlayerEditGuiState state);
+    public abstract boolean onTitleEditStatus(String message, EditGuiState state);
 
     public abstract void whenTimeout(Player player);
 }

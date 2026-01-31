@@ -1,6 +1,5 @@
 package com.tty.api.listener;
 
-import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
@@ -89,16 +88,9 @@ public abstract class BaseGuiListener implements Listener {
      * @param rawType function icon 的字符串
      * @return 返回指定的 FunctionType
      */
-    protected FunctionType ItemNBT_TypeCheck(String rawType) {
+    protected FunctionType ItemNBT_TypeCheck(String rawType) throws IllegalArgumentException {
         if(rawType == null) return null;
-        FunctionType type;
-        try {
-            type = FunctionType.valueOf(rawType.toUpperCase());
-            return type;
-        } catch (Exception e) {
-            Log.debug(e, "Function type {} error", rawType);
-            return null;
-        }
+        return FunctionType.valueOf(rawType.toUpperCase());
     }
 
 }

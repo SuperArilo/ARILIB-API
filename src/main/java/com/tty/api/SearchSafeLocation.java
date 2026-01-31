@@ -7,7 +7,16 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public record SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
+public class SearchSafeLocation {
+
+    private final Log log = Log.create();
+    private final JavaPlugin plugin;
+    private final Scheduler scheduler;
+
+    public SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
+        this.plugin = plugin;
+        this.scheduler = scheduler;
+    }
 
     public CompletableFuture<Location> search(World world, int x, int z) {
         CompletableFuture<Location> future = new CompletableFuture<>();
@@ -32,7 +41,7 @@ public record SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
                 }
                 scheduler.runAtRegion(plugin, world, chunkX, chunkZ, i -> {
                     if (this.isLocationSafe(chunk, relativeX, highestBlockYAt, relativeZ)) {
-                        Log.debug("random location x: {}, y: {}, z: {}, search time: {}ms", x, highestBlockYAt, z, (System.currentTimeMillis() - l));
+                        this.log.debug("random location x: {}, y: {}, z: {}, search time: {}ms", x, highestBlockYAt, z, (System.currentTimeMillis() - l));
                         future.complete(new Location(world, x + 0.5, highestBlockYAt + 1, z + 0.5));
                     } else {
                         future.complete(null);
@@ -75,7 +84,7 @@ public record SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
 
         //判断Y轴高度合不合法
         if (chunkY < chunk.getWorld().getMinHeight()) {
-            Log.debug("rtp: illegal Y-axis height.");
+            this.log.debug("rtp: illegal Y-axis height.");
             return false;
         }
 
@@ -93,23 +102,23 @@ public record SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
         Material behind = block.getRelative(0, -1, 0).getType();
 
         if (!isSafeStandingBlock(feet)) {
-            Log.debug("standing block illegal.");
+            this.log.debug("standing block illegal.");
             return false;
         }
 
         if (isSolid(body) || isSolid(head) ||
                 isDangerous(body) || isDangerous(head) ||
                 isDangerous(left) || isDangerous(right) || isDangerous(front) || isDangerous(behind)) {
-            Log.debug("the blocks around the player are illegal.");
+            this.log.debug("the blocks around the player are illegal.");
             return false;
         }
 
         if (isDangerous(feet)) {
-            Log.debug("feet block is dangerous.");
+            this.log.debug("feet block is dangerous.");
             return false;
         }
         if (chunk.getBlock(chunkX, chunkY - 1, chunkZ).getType().isAir()) {
-            Log.debug("feet block illegal.");
+            this.log.debug("feet block illegal.");
             return false;
         }
 
@@ -137,4 +146,9 @@ public record SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
             default -> false;
         };
     }
+
+    public void debug(boolean status) {
+        this.log.setDebug(status);
+    }
+
 }

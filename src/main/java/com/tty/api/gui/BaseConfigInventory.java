@@ -1,6 +1,5 @@
 package com.tty.api.gui;
 
-import com.tty.api.Log;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
@@ -76,7 +75,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             itemStack.setItemMeta(itemMeta);
             this.inventory.setItem(i, itemStack);
         }
-        Log.debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
+        this.getLog().debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     protected void renderFunctionItems() {
@@ -88,7 +87,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         functionItems.forEach((k, v) -> {
             FunctionType functionType = v.getType();
             if (functionType == null) {
-                Log.error("render function item on {} error.", k);
+                this.getLog().error("render function item on {} error.", k);
                 return;
             }
             ItemStack o = ItemStack.of(Material.valueOf(v.getMaterial().toUpperCase()));
@@ -101,7 +100,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
                 this.inventory.setItem(integer, o);
             }
         });
-        Log.debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
+        this.getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     protected String replaceKey(String content, Map<String, String> map) {
