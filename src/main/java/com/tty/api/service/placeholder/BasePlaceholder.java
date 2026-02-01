@@ -1,8 +1,8 @@
 package com.tty.api.service.placeholder;
 
 import com.google.common.reflect.TypeToken;
+import com.tty.api.utils.ComponentUtils;
 import com.tty.api.enumType.FilePathEnum;
-import com.tty.api.service.ComponentService;
 import com.tty.api.ConfigInstance;
 import com.tty.api.service.impl.PlaceholderEngineImpl;
 import net.kyori.adventure.text.Component;
@@ -18,15 +18,13 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
     private final PlaceholderEngineImpl engine;
     private final ConfigInstance instance;
     private final E type;
-    private final ComponentService service;
 
     private final Type typeTokenList = new TypeToken<List<String>>() {}.getType();
 
-    public BasePlaceholder(ConfigInstance instance, E type, ComponentService service) {
+    public BasePlaceholder(ConfigInstance instance, E type) {
         this.instance = instance;
         this.type = type;
-        this.service = service;
-        this.engine = new PlaceholderEngineImpl(service);
+        this.engine = new PlaceholderEngineImpl();
     }
 
     protected CompletableFuture<Component> empty() {
@@ -35,7 +33,7 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
 
     protected CompletableFuture<Component> set(String value) {
         CompletableFuture<Component> future = new CompletableFuture<>();
-        future.complete(this.service.text(value));
+        future.complete(ComponentUtils.text(value));
         return future;
     }
 

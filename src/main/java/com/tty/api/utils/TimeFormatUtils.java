@@ -1,4 +1,4 @@
-package com.tty.api;
+package com.tty.api.utils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;

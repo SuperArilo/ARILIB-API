@@ -1,6 +1,6 @@
 package com.tty.api.service.impl;
 
-import com.tty.api.service.ComponentService;
+import com.tty.api.utils.ComponentUtils;
 import com.tty.api.service.placeholder.PlaceholderEngine;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
 import lombok.Getter;
@@ -17,15 +17,10 @@ import java.util.regex.Pattern;
 public class PlaceholderEngineImpl implements PlaceholderEngine {
 
     private static final Pattern PATTERN = Pattern.compile("<([a-z0-9_]+)>");
-    private final ComponentService service;
 
     @Setter
     @Getter
     private PlaceholderRegistry registry;
-
-    public PlaceholderEngineImpl(ComponentService service) {
-        this.service = service;
-    }
 
     @Override
     public CompletableFuture<Component> render(String template, OfflinePlayer context) {
@@ -40,7 +35,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         }
 
         if (futures.isEmpty()) {
-            return CompletableFuture.completedFuture(this.service.text(template, context, Collections.emptyMap()));
+            return CompletableFuture.completedFuture(ComponentUtils.text(template, context, Collections.emptyMap()));
         }
 
         CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
@@ -48,7 +43,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         return CompletableFuture.allOf(all).thenApply(v -> {
             Map<String, Component> resolved = new HashMap<>(futures.size());
             futures.forEach((k, f) -> resolved.put(k, f.join()));
-            return this.service.text(template, context, resolved);
+            return ComponentUtils.text(template, context, resolved);
         });
     }
 
@@ -71,7 +66,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         if (futures.isEmpty()) {
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.service.text(line, context, Collections.emptyMap()));
+                components.add(ComponentUtils.text(line, context, Collections.emptyMap()));
             }
             return CompletableFuture.completedFuture(Component.join(JoinConfiguration.separator(Component.newline()), components));
         }
@@ -83,7 +78,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             futures.forEach((k, f) -> resolved.put(k, f.join()));
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.service.text(line, context, resolved));
+                components.add(ComponentUtils.text(line, context, resolved));
             }
             return Component.join(JoinConfiguration.separator(Component.newline()), components);
         });

@@ -1,6 +1,6 @@
 package com.tty.api.listener;
 
-import com.tty.api.FormatUtils;
+import com.tty.api.utils.FormatUtils;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;

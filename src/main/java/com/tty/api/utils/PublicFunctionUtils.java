@@ -1,4 +1,4 @@
-package com.tty.api;
+package com.tty.api.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

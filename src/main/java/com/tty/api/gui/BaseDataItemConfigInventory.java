@@ -1,10 +1,10 @@
 package com.tty.api.gui;
 
+import com.tty.api.utils.ComponentUtils;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.gui.BaseDataMenu;
 import com.tty.api.dto.gui.PageDisable;
 import com.tty.api.enumType.FunctionType;
-import com.tty.api.service.ComponentService;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -34,8 +34,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     private ItemStack prevOrigin;
     private ItemStack nextOrigin;
 
-    public BaseDataItemConfigInventory(JavaPlugin plugin, Player player, ComponentService service) {
-        super(plugin, player, service);
+    public BaseDataItemConfigInventory(JavaPlugin plugin, Player player) {
+        super(plugin, player);
     }
 
     @Override
@@ -195,7 +195,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         try {
             ItemStack itemStack = ItemStack.of(Material.valueOf(pageDisable.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(this.componentService.text(pageDisable.getName()));
+            itemMeta.displayName(ComponentUtils.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
             for (Integer slot : slots) {
                 if (this.inventory != null) {

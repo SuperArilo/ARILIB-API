@@ -1,5 +1,7 @@
-package com.tty.api;
+package com.tty.api.utils;
 
+import com.tty.api.Log;
+import com.tty.api.Scheduler;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;

@@ -1,7 +1,7 @@
 package com.tty.api.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.tty.api.BaseDataManager;
+import com.tty.api.utils.BaseDataManager;
 import com.tty.api.Log;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
