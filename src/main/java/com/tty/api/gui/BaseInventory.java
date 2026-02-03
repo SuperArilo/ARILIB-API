@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseInventory implements InventoryHolder {
 
-    private Log log = Log.create();
+    private static final Log log = Log.create();
     protected Inventory inventory;
 
     @Override
@@ -45,15 +45,14 @@ public abstract class BaseInventory implements InventoryHolder {
         }
         this.inventory = null;
         this.clean();
-        this.log = null;
     }
 
     protected Log getLog() {
-        return this.log;
+        return log;
     }
 
     protected void debug(boolean debug) {
-        this.log.setDebug(debug);
+        log.setDebug(debug);
     }
 
 }

@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class EntityRepository<T> {
     
-    private final Log log = Log.create();
+    private final static Log log = Log.create();
     protected final BaseDataManager<T> manager;
 
     private final Map<QueryKey, T> entityCache = new ConcurrentHashMap<>();
@@ -48,7 +48,7 @@ public abstract class EntityRepository<T> {
         Object[] merged = new Object[args.length + 1];
         merged[0] = getClass().getSimpleName();
         System.arraycopy(args, 0, merged, 1, args.length);
-        this.log.debug("[{}] " + format, merged);
+        log.debug("[{}] " + format, merged);
     }
 
     public CompletableFuture<T> get(LambdaQueryWrapper<T> key) {
@@ -296,7 +296,7 @@ public abstract class EntityRepository<T> {
     }
 
     public void debug(boolean status) {
-        this.log.setDebug(status);
+        log.setDebug(status);
     }
 
 }
