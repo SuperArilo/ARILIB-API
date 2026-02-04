@@ -1,6 +1,5 @@
 package com.tty.api.state;
 
-import com.tty.api.Log;
 import com.tty.api.Scheduler;
 import com.tty.api.task.CancellableTask;
 import lombok.Getter;
@@ -14,8 +13,6 @@ import java.util.List;
 
 public abstract class StateService<T extends State> {
 
-    @Getter
-    private final Log log = Log.create();
     private final Scheduler scheduler;
     private final JavaPlugin plugin;
     /**
@@ -107,7 +104,6 @@ public abstract class StateService<T extends State> {
             this.onServiceAbort(i);
         }
         this.stateList.clear();
-        this.log.debug("[{}] state service abort.", this.getClass().getSimpleName());
     }
 
     public boolean addState(T state) {
@@ -120,7 +116,6 @@ public abstract class StateService<T extends State> {
             this.passAddState(state);
             if (task == null) {
                 this.task = createTask(rate, c, isAsync, this.plugin);
-                this.log.debug("[{}] create state service.", this.getClass().getSimpleName());
             }
             return true;
         }
@@ -144,10 +139,6 @@ public abstract class StateService<T extends State> {
         synchronized (this.stateList) {
             return stateList.remove(state);
         }
-    }
-
-    public void debug(boolean status) {
-        this.log.setDebug(status);
     }
 
     /**
