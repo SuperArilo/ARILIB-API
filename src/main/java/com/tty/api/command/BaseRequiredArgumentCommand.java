@@ -53,4 +53,6 @@ public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
 
     public abstract CompletableFuture<Set<String>> tabSuggestions(CommandSender sender, String[] args);
 
+    protected abstract boolean havePermission(CommandSender sender, String permission);
+
 }

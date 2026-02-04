@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -29,6 +30,14 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
 
     public abstract List<SuperHandsomeCommand> thenCommands();
 
+    protected abstract @NotNull Component onlyUseInGame();
+
+    protected abstract @NotNull Component tokenNotAllow();
+
+    protected abstract @NotNull Component disableInGame();
+
+    protected abstract boolean isDisabledInGame();
+
     protected int preExecute(CommandContext<CommandSourceStack> ctx) {
         CommandSender sender = ctx.getSource().getSender();
         if (this.isDisabledInGame()) {
@@ -37,28 +46,15 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
         }
 
         CommandMeta meta = this.getClass().getAnnotation(CommandMeta.class);
+        if (meta == null) {
+            throw new IllegalStateException("missing @CommandMeta on " + getClass());
+        }
         if (!meta.allowConsole() && !(sender instanceof Player)) {
             sender.sendMessage(this.onlyUseInGame());
             return 0;
         }
 
-        String input = ctx.getInput().trim();
-
-        for (String name : PLUGIN_NAMES) {
-            if (input.startsWith(name + " ")) {
-                input = input.substring(name.length()).trim();
-                break;
-            }
-        }
-
-        String[] args = input.isEmpty() ? new String[0] : input.split(" ");
-
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if (arg.startsWith("\"") && arg.endsWith("\"") && arg.length() >= 2) {
-                args[i] = arg.substring(1, arg.length() - 1);
-            }
-        }
+        String[] args = getRealCommandArgs(ctx);
 
         if (args.length != meta.tokenLength()) {
             sender.sendMessage(this.tokenNotAllow());
@@ -69,14 +65,52 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
         return 1;
     }
 
-    protected abstract @NotNull Component onlyUseInGame();
+    private static String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
+        String input = ctx.getInput().trim();
+        for (String name : PLUGIN_NAMES) {
+            String plain = name + " ";
+            String namespaced = name + ":" + name + " ";
+            if (input.startsWith(plain)) {
+                input = input.substring(plain.length()).trim();
+                break;
+            } else if (input.startsWith(namespaced)) {
+                input = input.substring(namespaced.length()).trim();
+                break;
+            }
+        }
 
-    protected abstract @NotNull Component tokenNotAllow();
+        return tokenizeArgs(input);
+    }
 
-    protected abstract @NotNull Component disableInGame();
+    private static String @NotNull [] tokenizeArgs(String input) {
+        if (input.isEmpty()) return new String[0];
+        List<String> args = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        boolean escape = false;
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
 
-    protected abstract boolean havePermission(CommandSender sender, String permission);
-
-    protected abstract boolean isDisabledInGame();
+            if (escape) {
+                current.append(c);
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+            } else if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (Character.isWhitespace(c) && !inQuotes) {
+                if (!current.isEmpty()) {
+                    args.add(current.toString());
+                    current.setLength(0);
+                }
+            } else {
+                current.append(c);
+            }
+        }
+        if (!current.isEmpty()) {
+            args.add(current.toString());
+        }
+        return args.toArray(new String[0]);
+    }
 
 }

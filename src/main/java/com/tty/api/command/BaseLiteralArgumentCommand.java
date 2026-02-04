@@ -6,6 +6,7 @@ import com.tty.api.annotations.command.CommandMeta;
 import com.tty.api.annotations.command.LiteralCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import org.bukkit.command.CommandSender;
 
 
 public abstract class BaseLiteralArgumentCommand extends AbstractCommand {
@@ -27,5 +28,7 @@ public abstract class BaseLiteralArgumentCommand extends AbstractCommand {
         }
         return top_mian.build();
     }
+
+    protected abstract boolean havePermission(CommandSender sender, String permission);
 
 }
