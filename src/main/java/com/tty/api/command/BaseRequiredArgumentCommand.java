@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class BaseRequiredCommand<T> extends AbstractCommand {
+public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
 
     @Override
     public CommandNode<CommandSourceStack> toBrigadier() {

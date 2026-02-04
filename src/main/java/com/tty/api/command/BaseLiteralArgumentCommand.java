@@ -8,7 +8,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 
 
-public abstract class BaseLiteralCommand extends AbstractCommand {
+public abstract class BaseLiteralArgumentCommand extends AbstractCommand {
 
     @Override
     public LiteralCommandNode<CommandSourceStack> toBrigadier() {
