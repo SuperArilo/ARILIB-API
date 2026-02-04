@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 import java.util.List;
 
-public abstract class AbstractSubCommand implements SuperHandsomeCommand {
+public abstract class AbstractCommand implements SuperHandsomeCommand {
 
     protected static final String[] PLUGIN_NAMES;
 
