@@ -15,6 +15,7 @@ public abstract class BaseInventory implements InventoryHolder {
 
     @Override
     public @NotNull Inventory getInventory() {
+        if (this.inventory != null) return this.inventory;
         if (this.size() < 9) {
             throw new IllegalArgumentException("inventory size must be >= 9");
         }
