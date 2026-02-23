@@ -1,7 +1,6 @@
 package com.tty.api.event;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -17,18 +16,9 @@ public class CustomPluginReloadEvent extends Event implements Cancellable {
     private final CommandSender sender;
     @Getter
     private final JavaPlugin plugin;
-    @Getter
-    @Setter
-    private boolean debug = false;
 
     public CustomPluginReloadEvent(JavaPlugin plugin, CommandSender sender) {
         this.plugin = plugin;
-        this.sender = sender;
-    }
-
-    public CustomPluginReloadEvent(JavaPlugin plugin, boolean debug, CommandSender sender) {
-        this.plugin = plugin;
-        this.debug = debug;
         this.sender = sender;
     }
 
