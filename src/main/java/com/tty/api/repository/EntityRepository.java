@@ -31,14 +31,14 @@ public abstract class EntityRepository<T> {
     private final Cache<@NotNull PartitionedKey<QueryKey>, T> entityCache =
             Caffeine.newBuilder()
                     .maximumSize(2000)
-                    .expireAfterWrite(10, TimeUnit.MINUTES)
+                    .expireAfterWrite(300, TimeUnit.MINUTES)
                     .build();
 
     // 分页缓存，键为分区+分页条件，值为分页结果
     private final Cache<@NotNull PartitionedKey<PageKey<QueryKey>>, PageResult<T>> pageCache =
             Caffeine.newBuilder()
                     .maximumSize(200)
-                    .expireAfterWrite(5, TimeUnit.MINUTES)
+                    .expireAfterWrite(300, TimeUnit.MINUTES)
                     .build();
 
     // 正在进行的实体加载任务，用于防止缓存击穿
