@@ -1,63 +1,68 @@
 package com.tty.api.repository;
 
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.tty.api.Log;
-import com.tty.api.Scheduler;
 import com.tty.api.annotations.entity.CacheKey;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
-import com.tty.api.task.CancellableTask;
 import com.tty.api.utils.BaseDataManager;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 
 public abstract class EntityRepository<T> {
 
     private final static Log log = Log.create();
     protected final BaseDataManager<T> manager;
 
-    // 实体缓存：键为 QueryKey，值为实体
-    private final Map<QueryKey, T> entityCache = new ConcurrentHashMap<>();
+    private final Cache<@NotNull PartitionedKey<QueryKey>, T> entityCache = Caffeine.newBuilder()
+            .maximumSize(2000)
+            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .build();
 
-    // 分页缓存：键为 PageKey，值为分页结果
-    private final Map<PageKey<QueryKey>, PageResult<T>> pageCache = new ConcurrentHashMap<>();
+    private final Cache<@NotNull PartitionedKey<PageKey<QueryKey>>, PageResult<T>> pageCache = Caffeine.newBuilder()
+            .maximumSize(200)
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .build();
 
-    // 查询条件到分页键的映射（用于分页缓存失效）
-    private final Map<QueryKey, Set<PageKey<QueryKey>>> queryToPages = new ConcurrentHashMap<>();
+    private final Map<PartitionedKey<QueryKey>, Set<PartitionedKey<PageKey<QueryKey>>>> queryToPages = new ConcurrentHashMap<>();
 
-    /**
-     * 新增：缓存键字段值 -> 使用了该值的查询的 QueryKey 集合
-     * 当实体更新/删除时，根据旧实体的每个缓存键字段值，找到所有关联的查询并清除实体缓存。
-     */
-    private final Map<Object, Set<QueryKey>> cacheKeyValueToQueryKeys = new ConcurrentHashMap<>();
+    private final Map<PartitionKey, Map<String, Map<Object, Set<PartitionedKey<QueryKey>>>>> fieldReverseIndex = new ConcurrentHashMap<>();
 
-    private CancellableTask cleanTask;
+    private final Map<PartitionKey, Map<Object, Set<PartitionedKey<PageKey<QueryKey>>>>> entityIdToPages = new ConcurrentHashMap<>();
 
-    // 缓存每个实体类的缓存键字段列表
+    private final Map<PartitionedKey<PageKey<QueryKey>>, Set<Object>> pageToEntityIds = new ConcurrentHashMap<>();
+
     private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
+
+    private static final Map<Class<?>, Field> PK_FIELD_CACHE = new ConcurrentHashMap<>();
 
     public EntityRepository(BaseDataManager<T> manager) {
         this.manager = manager;
-        this.debug("EntityRepository initialized with manager: {}", manager.getClass().getSimpleName());
+        this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");
     }
 
-    /**
-     * 从实体中提取主键查询条件（用于主键缓存）
-     */
-    protected abstract @NotNull LambdaQueryWrapper<T> extractCacheKey(T entity);
+    protected abstract @Nullable Object resolvePartitionKey(T entity);
 
-    /**
-     * 从实体中提取分页查询条件（用于分页缓存失效）
-     * 当实体变更时，所有符合此条件的分页缓存将被清除。
-     */
-    protected abstract LambdaQueryWrapper<T> extractPageQueryKey(T entity);
+    protected abstract @Nullable Object resolvePartitionKey(LambdaQueryWrapper<T> wrapper);
+
+    private PartitionKey partitionOf(T entity) {
+        return PartitionKey.of(resolvePartitionKey(entity));
+    }
+
+    private PartitionKey partitionOf(LambdaQueryWrapper<T> wrapper) {
+        return PartitionKey.of(resolvePartitionKey(wrapper));
+    }
 
     protected QueryKey wrapQueryKey(LambdaQueryWrapper<T> wrapper) {
         return QueryKey.of(wrapper);
@@ -66,43 +71,60 @@ public abstract class EntityRepository<T> {
     private List<Field> getCacheKeyFields(Class<?> entityClass) {
         return CACHE_KEY_FIELDS_CACHE.computeIfAbsent(entityClass, clazz -> {
             List<Field> fields = new ArrayList<>();
-
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(CacheKey.class)) {
                     field.setAccessible(true);
                     fields.add(field);
                 }
             }
-
-            TableInfoHelper.getTableInfo(clazz);
             var tableInfo = TableInfoHelper.getTableInfo(clazz);
             if (tableInfo != null && tableInfo.getKeyProperty() != null) {
                 try {
                     Field pkField = clazz.getDeclaredField(tableInfo.getKeyProperty());
                     pkField.setAccessible(true);
-                    // 避免重复添加
                     if (fields.stream().noneMatch(f -> f.getName().equals(pkField.getName()))) {
                         fields.add(pkField);
                     }
+                    PK_FIELD_CACHE.putIfAbsent(clazz, pkField);
                 } catch (NoSuchFieldException ignored) {}
             }
             return fields;
         });
     }
 
-    private Map<Object, String> extractCacheKeyValues(T entity) {
-        Map<Object, String> values = new HashMap<>();
-        List<Field> fields = getCacheKeyFields(entity.getClass());
+    private Map<String, Object> extractCacheKeyValuesByFieldName(T entity) {
+        Map<String, Object> values = new HashMap<>();
+        if (entity == null) return values;
+        List<Field> fields = this.getCacheKeyFields(entity.getClass());
         for (Field field : fields) {
             try {
                 Object value = field.get(entity);
-                if (value != null) {
-                    values.put(value, field.getName());
-                }
-            } catch (IllegalAccessException ignored) {
-            }
+                values.put(field.getName(), value);
+            } catch (IllegalAccessException ignored) {}
         }
         return values;
+    }
+
+    private Object extractPrimaryKeyValue(T entity) {
+        if (entity == null) return null;
+        Field pkField = PK_FIELD_CACHE.get(entity.getClass());
+        if (pkField == null) {
+            var tableInfo = TableInfoHelper.getTableInfo(entity.getClass());
+            if (tableInfo == null || tableInfo.getKeyProperty() == null) return null;
+            try {
+                Field f = entity.getClass().getDeclaredField(tableInfo.getKeyProperty());
+                f.setAccessible(true);
+                PK_FIELD_CACHE.put(entity.getClass(), f);
+                pkField = f;
+            } catch (NoSuchFieldException ignored) {
+                return null;
+            }
+        }
+        try {
+            return pkField.get(entity);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
     }
 
     protected final void debug(String format, Object... args) {
@@ -112,45 +134,111 @@ public abstract class EntityRepository<T> {
         log.debug("[{}] " + format, merged);
     }
 
+    protected Set<String> extractFieldsUsedInQuery(LambdaQueryWrapper<T> wrapper) {
+        if (wrapper.getEntityClass() != null) {
+            return getCacheKeyFields(wrapper.getEntityClass()).stream().map(Field::getName).collect(Collectors.toSet());
+        }
+        return Collections.emptySet();
+    }
+
+    protected boolean isPrimaryKeyQuery(LambdaQueryWrapper<T> wrapper) {
+        if (wrapper == null) return false;
+        T sample = wrapper.getEntity();
+        if (sample == null) return false;
+        var tableInfo = TableInfoHelper.getTableInfo(sample.getClass());
+        if (tableInfo == null || tableInfo.getKeyProperty() == null) return false;
+        try {
+            Field pkField = sample.getClass().getDeclaredField(tableInfo.getKeyProperty());
+            pkField.setAccessible(true);
+            Object pkVal = pkField.get(sample);
+            return pkVal != null;
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return false;
+        }
+    }
+
+    private void recordQueryForCacheKeyValues(PartitionKey partition, PartitionedKey<QueryKey> pQueryKey, Map<String, Object> fieldToValue, Set<String> fieldsUsedInQuery) {
+        if (fieldsUsedInQuery == null || fieldsUsedInQuery.isEmpty()) return;
+        Map<String, Map<Object, Set<PartitionedKey<QueryKey>>>> partitionIndex =
+                fieldReverseIndex.computeIfAbsent(partition, k -> new ConcurrentHashMap<>());
+
+        for (Map.Entry<String, Object> e : fieldToValue.entrySet()) {
+            String fieldName = e.getKey();
+            Object value = e.getValue();
+            if (value == null) continue;
+            if (!fieldsUsedInQuery.contains(fieldName)) continue;
+            partitionIndex
+                    .computeIfAbsent(fieldName, k -> new ConcurrentHashMap<>())
+                    .computeIfAbsent(value, k -> ConcurrentHashMap.newKeySet())
+                    .add(pQueryKey);
+            this.debug("Recorded mapping partition={} field={} value={} -> query {}", partition, fieldName, value, pQueryKey);
+        }
+    }
+
+    private void recordPageEntities(PartitionKey partition, PartitionedKey<PageKey<QueryKey>> pPageKey, List<T> entities) {
+        if (entities == null || entities.isEmpty()) return;
+        Set<Object> ids = ConcurrentHashMap.newKeySet();
+        for (T e : entities) {
+            Object id = extractPrimaryKeyValue(e);
+            if (id == null) continue;
+            ids.add(id);
+            entityIdToPages
+                    .computeIfAbsent(partition, k -> new ConcurrentHashMap<>())
+                    .computeIfAbsent(id, k -> ConcurrentHashMap.newKeySet())
+                    .add(pPageKey);
+        }
+        pageToEntityIds.put(pPageKey, ids);
+    }
+
+    private void removePageFromEntityIndex(PartitionKey partition, PartitionedKey<PageKey<QueryKey>> pPageKey) {
+        Set<Object> ids = pageToEntityIds.remove(pPageKey);
+        if (ids == null || ids.isEmpty()) return;
+        Map<Object, Set<PartitionedKey<PageKey<QueryKey>>>> partitionEntityMap = entityIdToPages.get(partition);
+        if (partitionEntityMap == null) return;
+        for (Object id : ids) {
+            Set<PartitionedKey<PageKey<QueryKey>>> pages = partitionEntityMap.get(id);
+            if (pages != null) {
+                pages.remove(pPageKey);
+                if (pages.isEmpty()) {
+                    partitionEntityMap.remove(id);
+                }
+            }
+        }
+    }
+
     public CompletableFuture<T> get(LambdaQueryWrapper<T> key) {
+        PartitionKey partition = partitionOf(key);
         QueryKey queryKey = this.wrapQueryKey(key);
-        T cached = this.entityCache.get(queryKey);
+        PartitionedKey<QueryKey> pQueryKey = new PartitionedKey<>(partition, queryKey);
+
+        T cached = this.entityCache.getIfPresent(pQueryKey);
         if (cached != null) {
-            this.debug("Entity cache hit for key: {}", queryKey);
+            this.debug("Entity cache hit for key: {}", pQueryKey);
             return CompletableFuture.completedFuture(cached);
         }
 
-        this.debug("Entity cache miss for key: {}, querying from DB", queryKey);
+        this.debug("Entity cache miss for key: {}, querying from DB", pQueryKey);
 
         if (this.manager == null) {
-            this.debug("Manager is null, returning null for key: {}", queryKey);
+            this.debug("Manager is null, returning null for key: {}", pQueryKey);
             return CompletableFuture.completedFuture(null);
         }
 
-        return this.manager.getInstance(key).thenApply(entity -> {
+        return this.manager.get(key).thenApply(entity -> {
             if (entity != null) {
+                this.entityCache.put(pQueryKey, entity);
+                this.debug("Entity cached for key: {}", pQueryKey);
 
-                this.entityCache.put(queryKey, entity);
-                this.debug("Entity cached for key: {}", queryKey);
-
-                LambdaQueryWrapper<T> pkWrapper = this.extractCacheKey(entity);
-                QueryKey pkQueryKey = this.wrapQueryKey(pkWrapper);
-                boolean isPrimaryKeyQuery = queryKey.equals(pkQueryKey);
-
-                if (!isPrimaryKeyQuery) {
-                    Map<Object, String> cacheValues = extractCacheKeyValues(entity);
-                    for (Object value : cacheValues.keySet()) {
-                        this.cacheKeyValueToQueryKeys
-                                .computeIfAbsent(value, k -> ConcurrentHashMap.newKeySet())
-                                .add(queryKey);
-                        this.debug("Recorded query {} for cache key value: {} ({})",
-                                queryKey, value, cacheValues.get(value));
-                    }
+                boolean primary = this.isPrimaryKeyQuery(key);
+                if (!primary) {
+                    Set<String> fieldsUsedInQuery = this.extractFieldsUsedInQuery(key);
+                    Map<String, Object> cacheValues = this.extractCacheKeyValuesByFieldName(entity);
+                    recordQueryForCacheKeyValues(partition, pQueryKey, cacheValues, fieldsUsedInQuery);
                 } else {
-                    this.debug("Primary key query, no need to record mapping");
+                    this.debug("Primary key query detected, skip recording field->query mapping for {}", pQueryKey);
                 }
             } else {
-                this.debug("Entity not found for key: {}", queryKey);
+                this.debug("Entity not found for key: {}", pQueryKey);
             }
             return entity;
         });
@@ -158,14 +246,23 @@ public abstract class EntityRepository<T> {
 
     public CompletableFuture<T> create(T entity) {
         this.debug("Creating new entity: {}", entity);
-        return this.manager.createInstance(entity).thenApply(createdEntity -> {
+        if (this.manager == null) {
+            this.debug("Manager is null, cannot create");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return this.manager.create(entity).thenApply(createdEntity -> {
             if (createdEntity != null) {
-                LambdaQueryWrapper<T> cacheKeyWrapper = this.extractCacheKey(createdEntity);
-                QueryKey cacheKey = this.wrapQueryKey(cacheKeyWrapper);
-                this.entityCache.put(cacheKey, createdEntity);
-                this.debug("New entity cached with key: {}", cacheKey);
-                this.handleCreateForAscendingOrder(createdEntity);
-                this.debug("Entity created and cached successfully: {}", cacheKey);
+                PartitionKey partition = partitionOf(createdEntity);
+                LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(createdEntity);
+                PartitionedKey<QueryKey> pk = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
+                this.entityCache.put(pk, createdEntity);
+                this.debug("New entity cached with key: {}", pk);
+                Map<String, Object> cacheValues = extractCacheKeyValuesByFieldName(createdEntity);
+                Set<String> fieldsUsedInQuery = Collections.emptySet();
+                triggerInvalidationByFields(partition, cacheValues, fieldsUsedInQuery);
+
+                this.debug("Entity created and cached successfully: {}", pk);
             } else {
                 this.debug("Entity creation failed for: {}", entity);
             }
@@ -173,99 +270,140 @@ public abstract class EntityRepository<T> {
         });
     }
 
-    public CompletableFuture<Boolean> update(T entity) {
-
-        LambdaQueryWrapper<T> pkWrapper = this.extractCacheKey(entity);
-        QueryKey pkQueryKey = this.wrapQueryKey(pkWrapper);
-
-        T oldEntity = this.entityCache.get(pkQueryKey);
-        if (oldEntity == null) {
-            this.debug("Old entity not found in cache, loading from DB for key: {}", pkQueryKey);
-            oldEntity = this.manager.getInstance(pkWrapper).join();
+    public CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key) {
+        if (this.manager == null) {
+            this.debug("Manager is null, cannot update");
+            return CompletableFuture.completedFuture(false);
         }
+        PartitionKey partition = partitionOf(key);
+        return this.manager.get(key).thenCompose(oldEntity ->
+                this.manager.update(entity, key).thenApply(success -> {
+                    PartitionedKey<QueryKey> pkQueryKey = new PartitionedKey<>(partition, wrapQueryKey(new LambdaQueryWrapper<>(entity)));
+                    if (success) {
+                        // 更新缓存（以实体 pk 为准）
+                        this.entityCache.put(pkQueryKey, entity);
+                        this.debug("Entity updated in cache: {}", pkQueryKey);
 
-        T finalOldEntity = oldEntity;
-        return this.manager.modify(entity).thenApply(success -> {
-            if (success) {
-                this.entityCache.put(pkQueryKey, entity);
-                this.debug("Entity updated in cache: {}", pkQueryKey);
-
-                if (finalOldEntity != null) {
-                    Map<Object, String> oldCacheValues = extractCacheKeyValues(finalOldEntity);
-                    for (Object oldValue : oldCacheValues.keySet()) {
-                        Set<QueryKey> relatedQueries = this.cacheKeyValueToQueryKeys.remove(oldValue);
-                        if (relatedQueries != null) {
-                            for (QueryKey qk : relatedQueries) {
-                                this.entityCache.remove(qk);
-                                this.debug("Removed entity cache for query {} (due to cache key value: {} - {})", qk, oldValue, oldCacheValues.get(oldValue));
-                            }
+                        if (oldEntity != null) {
+                            invalidateRelatedEntityQueries(partition, oldEntity, entity);
+                            // 失效由于 query 变化产生的相关分页
+                            invalidatePagesByPartitionedQueryKey(new PartitionedKey<>(partition, wrapQueryKey(key)));
+                        } else {
+                            // 保险策略：失效 key 对应的分页
+                            invalidatePagesByPartitionedQueryKey(new PartitionedKey<>(partition, wrapQueryKey(key)));
                         }
+                    } else {
+                        this.debug("Entity update failed for key: {}", pkQueryKey);
                     }
-                }
-                this.invalidateRelatedPages(entity);
-            } else {
-                this.debug("Entity update failed for key: {}", pkQueryKey);
-            }
-            return success;
-        });
+                    return success;
+                })
+        );
     }
 
-    public CompletableFuture<Boolean> delete(T entity) {
-        LambdaQueryWrapper<T> pkWrapper = this.extractCacheKey(entity);
-        QueryKey pkQueryKey = this.wrapQueryKey(pkWrapper);
-
-        T cachedEntity = this.entityCache.get(pkQueryKey);
-        CompletableFuture<T> entityFuture;
-        if (cachedEntity != null) {
-            entityFuture = CompletableFuture.completedFuture(cachedEntity);
-        } else {
-            entityFuture = this.manager.getInstance(pkWrapper);
+    public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key) {
+        if (this.manager == null) {
+            this.debug("Manager is null, cannot delete");
+            return CompletableFuture.completedFuture(false);
         }
-
-        return entityFuture.thenCompose(e -> {
-            if (e == null) {
-                this.debug("Entity not found for deletion, key: {}", pkQueryKey);
+        PartitionKey partition = partitionOf(key);
+        return this.manager.get(key).thenCompose(entityToDelete -> {
+            if (entityToDelete == null) {
+                this.debug("Entity not found for deletion, key: {}", wrapQueryKey(key));
                 return CompletableFuture.completedFuture(false);
             }
 
-            return this.manager.deleteInstance(e).thenApply(success -> {
+            return this.manager.delete(key).thenApply(success -> {
                 if (success) {
-                    // 移除主键缓存
-                    this.entityCache.remove(pkQueryKey);
+                    LambdaQueryWrapper<T> pkWrapper = new LambdaQueryWrapper<>(entityToDelete);
+                    PartitionedKey<QueryKey> pkQueryKey = new PartitionedKey<>(partition, wrapQueryKey(pkWrapper));
+                    this.entityCache.invalidate(pkQueryKey);
                     this.debug("Entity removed from cache: {}", pkQueryKey);
+                    Map<String, Object> cacheValues = extractCacheKeyValuesByFieldName(entityToDelete);
+                    Map<String, Map<Object, Set<PartitionedKey<QueryKey>>>> partitionIndex = fieldReverseIndex.get(partition);
+                    if (partitionIndex != null) {
+                        for (Map.Entry<String, Object> entry : cacheValues.entrySet()) {
+                            String fieldName = entry.getKey();
+                            Object value = entry.getValue();
+                            if (value == null) continue;
+                            Map<Object, Set<PartitionedKey<QueryKey>>> valueToQKs = partitionIndex.get(fieldName);
+                            if (valueToQKs != null) {
+                                Set<PartitionedKey<QueryKey>> relatedQueries = valueToQKs.remove(value);
+                                if (relatedQueries != null) {
+                                    for (PartitionedKey<QueryKey> qk : relatedQueries) {
+                                        this.entityCache.invalidate(qk);
+                                        this.debug("Removed entity cache for query {} (due to delete, field: {} value: {})", qk, fieldName, value);
+                                        invalidatePagesByPartitionedQueryKey(qk);
+                                    }
+                                }
+                                if (valueToQKs.isEmpty()) {
+                                    partitionIndex.remove(fieldName);
+                                }
+                            }
+                        }
+                        if (partitionIndex.isEmpty()) {
+                            fieldReverseIndex.remove(partition);
+                        }
+                    }
 
-                    Map<Object, String> cacheValues = extractCacheKeyValues(e);
-                    for (Object value : cacheValues.keySet()) {
-                        Set<QueryKey> relatedQueries = this.cacheKeyValueToQueryKeys.remove(value);
-                        if (relatedQueries != null) {
-                            for (QueryKey qk : relatedQueries) {
-                                this.entityCache.remove(qk);
-                                this.debug("Removed entity cache for query {} (due to cache key value: {} - {})", qk, value, cacheValues.get(value));
+                    Object id = extractPrimaryKeyValue(entityToDelete);
+                    if (id != null) {
+                        Map<Object, Set<PartitionedKey<PageKey<QueryKey>>>> partitionEntityMap = entityIdToPages.get(partition);
+                        if (partitionEntityMap != null) {
+                            Set<PartitionedKey<PageKey<QueryKey>>> pages = partitionEntityMap.remove(id);
+                            if (pages != null) {
+                                for (PartitionedKey<PageKey<QueryKey>> pPageKey : pages) {
+                                    this.pageCache.invalidate(pPageKey);
+                                    removePageFromEntityIndex(partition, pPageKey);
+                                    removePageFromQueryToPages(pPageKey);
+                                    this.debug("Invalidated page {} because it contained entity id={}", pPageKey, id);
+                                }
+                            }
+                            if (partitionEntityMap.isEmpty()) {
+                                entityIdToPages.remove(partition);
                             }
                         }
                     }
 
-                    // 失效分页缓存
-                    this.invalidateRelatedPages(e);
                 } else {
-                    this.debug("Entity deletion failed for key: {}", pkQueryKey);
+                    this.debug("Entity deletion failed for key: {}", wrapQueryKey(key));
                 }
                 return success;
             });
         });
     }
 
+    private void triggerInvalidationByFields(PartitionKey partition, Map<String, Object> fieldValues, Set<String> fieldsUsedInQuery) {
+        if (fieldValues == null || fieldValues.isEmpty()) return;
+        Map<String, Map<Object, Set<PartitionedKey<QueryKey>>>> partitionIndex = fieldReverseIndex.get(partition);
+        if (partitionIndex == null) return;
+        for (String f : fieldValues.keySet()) {
+            if (!fieldsUsedInQuery.isEmpty() && !fieldsUsedInQuery.contains(f)) continue;
+            Object v = fieldValues.get(f);
+            if (v == null) continue;
+            Map<Object, Set<PartitionedKey<QueryKey>>> valueToQKs = partitionIndex.get(f);
+            if (valueToQKs == null) continue;
+            Set<PartitionedKey<QueryKey>> qks = valueToQKs.get(v);
+            if (qks == null) continue;
+            for (PartitionedKey<QueryKey> qk : qks) {
+                invalidatePagesByPartitionedQueryKey(qk);
+            }
+        }
+    }
+
     public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> queryCondition) {
+        PartitionKey partition = partitionOf(queryCondition);
         QueryKey queryKey = this.wrapQueryKey(queryCondition);
         PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
+        PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
+        PartitionedKey<QueryKey> pQueryKey = new PartitionedKey<>(partition, queryKey);
 
-        PageResult<T> cached = this.pageCache.get(pageKey);
+        PageResult<T> cached = this.pageCache.getIfPresent(pPageKey);
         if (cached != null) {
-            this.debug("Page cache hit for pageKey: {}", pageKey);
+            this.debug("Page cache hit for pageKey: {}", pPageKey);
             return CompletableFuture.completedFuture(cached);
         }
 
-        this.debug("Page cache miss for pageKey: {}, querying from DB", pageKey);
+        this.debug("Page cache miss for pageKey: {}, querying from DB", pPageKey);
 
         if (this.manager == null) {
             this.debug("Manager is null, returning empty page result");
@@ -274,23 +412,30 @@ public abstract class EntityRepository<T> {
 
         return this.manager.getList(pageNum, pageSize, queryCondition).thenApply(result -> {
             if (result == null) {
-                this.debug("Query returned null result for pageKey: {}", pageKey);
+                this.debug("Query returned null result for pageKey: {}", pPageKey);
                 return null;
             }
 
-            this.pageCache.put(pageKey, result);
-            this.debug("Page cached for pageKey: {}, record count: {}", pageKey, result.records().size());
+            this.pageCache.put(pPageKey, result);
+            this.debug("Page cached for pageKey: {}, record count: {}", pPageKey, result.records().size());
 
-            this.queryToPages.computeIfAbsent(queryKey, k -> ConcurrentHashMap.newKeySet()).add(pageKey);
-            this.debug("Added pageKey mapping for query condition: {} -> {}", queryKey, pageKey);
+            queryToPages.computeIfAbsent(pQueryKey, k -> ConcurrentHashMap.newKeySet()).add(pPageKey);
+            this.debug("Added pageKey mapping for query condition: {} -> {}", pQueryKey, pPageKey);
 
+            Set<String> fieldsUsedInQuery = this.extractFieldsUsedInQuery(queryCondition);
             int entityCachedCount = 0;
             for (T entity : result.records()) {
-                LambdaQueryWrapper<T> entityKeyWrapper = this.extractCacheKey(entity);
-                QueryKey entityKey = this.wrapQueryKey(entityKeyWrapper);
+
+                LambdaQueryWrapper<T> entityPkWrapper = new LambdaQueryWrapper<>(entity);
+                PartitionedKey<QueryKey> entityKey = new PartitionedKey<>(partition, this.wrapQueryKey(entityPkWrapper));
                 this.entityCache.put(entityKey, entity);
                 entityCachedCount++;
+
+                Map<String, Object> cacheValues = extractCacheKeyValuesByFieldName(entity);
+                recordQueryForCacheKeyValues(partition, pQueryKey, cacheValues, fieldsUsedInQuery);
             }
+
+            recordPageEntities(partition, pPageKey, result.records());
 
             if (entityCachedCount > 0) {
                 this.debug("Cached {} entities from page result", entityCachedCount);
@@ -300,87 +445,66 @@ public abstract class EntityRepository<T> {
         });
     }
 
-    private void invalidateRelatedPages(T entity) {
-        if (entity == null) {
-            this.debug("Cannot invalidate pages for null entity");
-            return;
-        }
-
-        LambdaQueryWrapper<T> pageQueryKeyWrapper = this.extractPageQueryKey(entity);
-        if (pageQueryKeyWrapper == null) {
-            this.debug("Entity type does not require page cache invalidation");
-            return;
-        }
-
-        QueryKey queryKey = this.wrapQueryKey(pageQueryKeyWrapper);
-        this.debug("Invalidating pages related to entity with query key: {}", queryKey);
-        this.invalidatePagesByQueryKey(queryKey);
-    }
-
-    private void invalidatePagesByQueryKey(QueryKey queryKey) {
-        Set<PageKey<QueryKey>> relatedPages = this.queryToPages.remove(queryKey);
+    private void invalidatePagesByPartitionedQueryKey(PartitionedKey<QueryKey> pQueryKey) {
+        Set<PartitionedKey<PageKey<QueryKey>>> relatedPages = queryToPages.remove(pQueryKey);
         if (relatedPages == null || relatedPages.isEmpty()) {
-            this.debug("No related pages found for query key: {}", queryKey);
+            this.debug("No related pages found for query key: {}", pQueryKey);
             return;
         }
-
         int invalidatedCount = 0;
-        for (PageKey<QueryKey> pageKey : relatedPages) {
-            this.pageCache.remove(pageKey);
+        for (PartitionedKey<PageKey<QueryKey>> pPageKey : relatedPages) {
+            this.pageCache.invalidate(pPageKey);
+            removePageFromEntityIndex(pPageKey.partition(), pPageKey);
             invalidatedCount++;
+            removePageFromQueryToPages(pPageKey);
         }
-
-        this.debug("Invalidated {} pages for query key: {}", invalidatedCount, queryKey);
+        this.debug("Invalidated {} pages for query key: {}", invalidatedCount, pQueryKey);
     }
 
-    private void handleCreateForAscendingOrder(T newEntity) {
-        LambdaQueryWrapper<T> pageQueryKeyWrapper = this.extractPageQueryKey(newEntity);
-        if (pageQueryKeyWrapper == null) return;
-
-        QueryKey queryKey = this.wrapQueryKey(pageQueryKeyWrapper);
-        Set<PageKey<QueryKey>> relatedPages = this.queryToPages.get(queryKey);
-
-        if (relatedPages == null || relatedPages.isEmpty()) {
-            this.debug("No cached pages found for new entity, query key: {}", queryKey);
-            return;
-        }
-
-        int maxPageNum = 0;
-        for (PageKey<QueryKey> pageKey : relatedPages) {
-            if (pageKey.pageNum() > maxPageNum) {
-                maxPageNum = pageKey.pageNum();
-            }
-        }
-
-        PageKey<QueryKey> lastPageKey = null;
-        for (PageKey<QueryKey> pageKey : relatedPages) {
-            if (pageKey.pageNum() == maxPageNum) {
-                lastPageKey = pageKey;
-                break;
-            }
-        }
-
-        if (lastPageKey != null) {
-            PageResult<T> lastPage = this.pageCache.get(lastPageKey);
-            if (lastPage != null) {
-                int pageSize = lastPageKey.pageSize();
-                int recordCount = lastPage.records().size();
-
-                if (recordCount < pageSize) {
-                    this.pageCache.remove(lastPageKey);
-                    relatedPages.remove(lastPageKey);
-                    this.debug("Last page not full ({}/{}), invalidated only last page: {}",
-                            recordCount, pageSize, lastPageKey);
-                } else {
-                    this.invalidatePagesByQueryKey(queryKey);
-                    this.debug("Last page is full ({}/{}), invalidated all pages for query: {}",
-                            recordCount, pageSize, queryKey);
+    private void removePageFromQueryToPages(PartitionedKey<PageKey<QueryKey>> pPageKey) {
+        if (pPageKey == null) return;
+        queryToPages.forEach((qk, pages) -> {
+            if (pages != null && pages.remove(pPageKey)) {
+                if (pages.isEmpty()) {
+                    queryToPages.remove(qk);
                 }
-            } else {
-                this.debug("Last page cache entry not found for pageKey: {}", lastPageKey);
             }
-        } else {
-            this.debug("No last page key found for query: {}", queryKey);
+        });
+    }
+
+    private void invalidateRelatedEntityQueries(PartitionKey partition, T oldEntity, T newEntity) {
+        Map<String, Object> oldValues = this.extractCacheKeyValuesByFieldName(oldEntity);
+        Map<String, Object> newValues = this.extractCacheKeyValuesByFieldName(newEntity);
+
+        Map<String, Map<Object, Set<PartitionedKey<QueryKey>>>> partitionIndex = fieldReverseIndex.get(partition);
+        if (partitionIndex == null) return;
+
+        for (Map.Entry<String, Object> entry : oldValues.entrySet()) {
+            String fieldName = entry.getKey();
+            Object oldVal = entry.getValue();
+            Object newVal = newValues.get(fieldName);
+
+            boolean changed = !Objects.equals(oldVal, newVal);
+            if (!changed) continue;
+            if (oldVal == null) continue;
+
+            Map<Object, Set<PartitionedKey<QueryKey>>> valueToQKs = partitionIndex.get(fieldName);
+            if (valueToQKs != null) {
+                Set<PartitionedKey<QueryKey>> relatedQueries = valueToQKs.remove(oldVal);
+                if (relatedQueries != null) {
+                    for (PartitionedKey<QueryKey> qk : relatedQueries) {
+                        this.entityCache.invalidate(qk);
+                        this.debug("Removed entity cache for query {} due to change of field {} value: {} -> {}", qk, fieldName, oldVal, newVal);
+                        invalidatePagesByPartitionedQueryKey(qk);
+                    }
+                }
+                if (valueToQKs.isEmpty()) {
+                    partitionIndex.remove(fieldName);
+                }
+            }
+        }
+        if (partitionIndex.isEmpty()) {
+            fieldReverseIndex.remove(partition);
         }
     }
 
@@ -393,49 +517,34 @@ public abstract class EntityRepository<T> {
     }
 
     public void clearEntityCache() {
-        int size = this.entityCache.size();
-        this.entityCache.clear();
-        this.cacheKeyValueToQueryKeys.clear(); // 清理映射关系
-        this.debug("Cleared entity cache, removed {} entities", String.valueOf(size));
+        long size = this.entityCache.estimatedSize();
+        this.entityCache.invalidateAll();
+        this.fieldReverseIndex.clear();
+        this.entityIdToPages.clear();
+        this.pageToEntityIds.clear();
+        this.queryToPages.clear();
+        this.debug("Cleared entity cache, removed approximately {} entries and cleared reverse indexes", size);
     }
 
     public void clearPageCache() {
-        int pageCount = this.pageCache.size();
-        this.pageCache.clear();
+        long pageCount = this.pageCache.estimatedSize();
+        this.pageCache.invalidateAll();
         this.queryToPages.clear();
-        this.debug("Cleared page cache, removed {} pages", String.valueOf(pageCount));
+        this.pageToEntityIds.clear();
+        this.entityIdToPages.clear();
+        this.debug("Cleared page cache, removed approximately {} pages and cleared page indexes", pageCount);
     }
 
     public void clearAllCache() {
-        int entityCount = this.entityCache.size();
-        int pageCount = this.pageCache.size();
-
+        long entityCount = this.entityCache.estimatedSize();
+        long pageCount = this.pageCache.estimatedSize();
         this.clearEntityCache();
         this.clearPageCache();
-
-        this.debug("Cleared all cache, removed {} entities and {} pages", String.valueOf(entityCount), String.valueOf(pageCount));
-    }
-
-    public void autoClean(Scheduler scheduler, JavaPlugin plugin, long delay, long period) {
-        if (this.cleanTask != null) return;
-        this.cleanTask = scheduler.runAsyncAtFixedRate(plugin, i -> {
-            try {
-                this.clearAllCache();
-                this.debug("Scheduled cache clear executed.");
-            } catch (Exception e) {
-                log.error(e, "Error during scheduled cache clear");
-            }
-        }, delay, period);
-    }
-
-    public void stopAutoClean() {
-        if (this.cleanTask == null) return;
-        this.cleanTask.cancel();
-        this.cleanTask = null;
-        this.debug("Auto clear stopped.");
+        this.debug("Cleared all cache, removed approximately {} entities and {} pages", entityCount, pageCount);
     }
 
     public void debug(boolean status) {
         log.setDebug(status);
     }
+
 }

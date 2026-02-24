@@ -44,16 +44,14 @@ public abstract class BaseDataManager<T> {
 
     public abstract CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> key);
 
-    public abstract CompletableFuture<T> getInstance(LambdaQueryWrapper<T> key);
+    public abstract CompletableFuture<T> get(LambdaQueryWrapper<T> key);
 
-    public abstract CompletableFuture<T> createInstance(T instance);
+    public abstract CompletableFuture<T> create(T instance);
 
-    public abstract CompletableFuture<Boolean> deleteInstance(T instance);
-    /**
-     * 修改信息
-     * @param instance 被修改的对象
-     * @return 修改成功状态。true：成功，false：失败
-     */
-    public abstract CompletableFuture<Boolean> modify(T instance);
+    public abstract CompletableFuture<Boolean> delete(T entity);
+
+    public abstract CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key);
+
+    public abstract CompletableFuture<Boolean> update(T instance, LambdaQueryWrapper<T> key);
 
 }
