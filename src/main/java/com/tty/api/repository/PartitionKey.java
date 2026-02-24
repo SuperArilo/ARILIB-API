@@ -4,6 +4,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
+/**
+ * 缓存作用域（请注意，必须填写准确，不然会导致脏缓存）
+ * @param value
+ */
 public record PartitionKey(Object value) {
 
     private static final PartitionKey GLOBAL = new PartitionKey("__GLOBAL__");
