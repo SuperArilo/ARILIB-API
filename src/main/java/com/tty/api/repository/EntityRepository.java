@@ -4,10 +4,13 @@ package com.tty.api.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.tty.api.Log;
+import com.tty.api.Scheduler;
 import com.tty.api.annotations.entity.CacheKey;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
+import com.tty.api.task.CancellableTask;
 import com.tty.api.utils.BaseDataManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
@@ -34,6 +37,8 @@ public abstract class EntityRepository<T> {
      * 当实体更新/删除时，根据旧实体的每个缓存键字段值，找到所有关联的查询并清除实体缓存。
      */
     private final Map<Object, Set<QueryKey>> cacheKeyValueToQueryKeys = new ConcurrentHashMap<>();
+
+    private CancellableTask cleanTask;
 
     // 缓存每个实体类的缓存键字段列表
     private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
@@ -379,7 +384,6 @@ public abstract class EntityRepository<T> {
         }
     }
 
-    // ---------- 其他方法 ----------
     public void setExecutionMode(boolean value) {
         this.manager.setExecutionMode(value);
     }
@@ -410,6 +414,25 @@ public abstract class EntityRepository<T> {
         this.clearPageCache();
 
         this.debug("Cleared all cache, removed {} entities and {} pages", String.valueOf(entityCount), String.valueOf(pageCount));
+    }
+
+    public void autoClean(Scheduler scheduler, JavaPlugin plugin, long delay, long period) {
+        if (this.cleanTask != null) return;
+        this.cleanTask = scheduler.runAsyncAtFixedRate(plugin, i -> {
+            try {
+                this.clearAllCache();
+                this.debug("Scheduled cache clear executed.");
+            } catch (Exception e) {
+                log.error(e, "Error during scheduled cache clear");
+            }
+        }, delay, period);
+    }
+
+    public void stopAutoClean() {
+        if (this.cleanTask == null) return;
+        this.cleanTask.cancel();
+        this.cleanTask = null;
+        this.debug("Auto clear stopped.");
     }
 
     public void debug(boolean status) {
