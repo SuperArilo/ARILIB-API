@@ -3,6 +3,7 @@ package com.tty.api.utils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tty.api.dto.PageResult;
+import lombok.Getter;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -16,7 +17,8 @@ public abstract class BaseDataManager<T> {
     /**
      * 是否异步
      */
-    public boolean isAsync;
+    @Getter
+    private boolean isAsync;
 
     public BaseDataManager(boolean isAsync) {
         this.isAsync = isAsync;
