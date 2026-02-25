@@ -302,7 +302,7 @@ public abstract class EntityRepository<T> {
                 PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
                 if (pkKey == null) {
                     LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-                    pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
+                    pkKey = new PartitionedKey<>(partition, this.wrapQueryKey(wrapper));
                 }
                 this.entityCache.put(pkKey, entity);
                 this.pendingEntityFutures.remove(pkKey);
