@@ -413,6 +413,7 @@ public abstract class EntityRepository<T> {
         this.pendingPageFutures.values().forEach(f -> f.cancel(true));
         this.pendingEntityFutures.clear();
         this.pendingPageFutures.clear();
+        this.manager.shutdown();
         this.debug("All pending futures aborted.");
     }
 
