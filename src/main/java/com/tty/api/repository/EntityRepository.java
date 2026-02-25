@@ -108,7 +108,7 @@ public abstract class EntityRepository<T> {
      * @return 分区+主键查询键，若无法构建则返回 null
      */
     private PartitionedKey<QueryKey> buildPrimaryKeyQueryKey(T entity, PartitionKey partition) {
-        Object id = extractPrimaryKeyValue(entity);
+        Object id = this.extractPrimaryKeyValue(entity);
         if (id == null) {
             this.debug("Cannot build primary key query key, id is null for entity: {}", entity);
             return null;
@@ -331,13 +331,13 @@ public abstract class EntityRepository<T> {
             }
             return this.manager.delete(key).thenApply(success -> {
                 if (!success) return false;
-                PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
+                PartitionedKey<QueryKey> pkKey = this.buildPrimaryKeyQueryKey(entity, partition);
                 if (pkKey == null) {
                     LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
                     pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
                 }
                 this.entityCache.invalidate(pkKey);
-                this.pendingEntityFutures.remove(pkKey); // 移除可能正在进行的加载任务
+                this.pendingEntityFutures.remove(pkKey);
                 this.debug("Entity deleted successfully: {}", entity);
                 this.invalidateAllPagesInPartition(partition);
                 return true;
