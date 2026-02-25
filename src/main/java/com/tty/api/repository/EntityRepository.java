@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.tty.api.Log;
+import com.tty.api.annotations.cache.CacheKey;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
 import com.tty.api.utils.BaseDataManager;
@@ -17,10 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 实体仓库抽象基类，为实体提供带有两级缓存（实体缓存 + 分页缓存）的异步 CRUD 操作。
- * @param <T> 实体类型
- */
 public abstract class EntityRepository<T> {
 
     private static final Log log = Log.create();
@@ -48,6 +45,9 @@ public abstract class EntityRepository<T> {
 
     // 缓存实体类的主键 Field，避免重复反射
     private static final Map<Class<?>, Field> PK_FIELD_CACHE = new ConcurrentHashMap<>();
+
+    // 缓存实体类中被 @CacheKey 标记的字段列表
+    private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
 
     /**
      * 构造方法，注入数据管理器
@@ -120,13 +120,101 @@ public abstract class EntityRepository<T> {
             return null;
         }
 
-        LambdaQueryWrapper<T> pkWrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<T> pkWrapper = new LambdaQueryWrapper<>(entity);
         pkWrapper.apply(tableInfo.getKeyColumn() + " = {0}", id);
         return new PartitionedKey<>(partition, wrapQueryKey(pkWrapper));
     }
 
     /**
-     * 统一的调试日志输出，自动添加类名前缀
+     * 获取实体类中被 @CacheKey
+     * @param entityClass 实体类
+     * @return 返回的 list集合
+     */
+    private List<Field> getCacheKeyFields(Class<?> entityClass) {
+        return CACHE_KEY_FIELDS_CACHE.computeIfAbsent(entityClass, clazz -> {
+            List<Field> fields = new ArrayList<>();
+            Class<?> current = clazz;
+            while (current != null && current != Object.class) {
+                for (Field field : current.getDeclaredFields()) {
+                    if (field.isAnnotationPresent(CacheKey.class)) {
+                        field.setAccessible(true);
+                        fields.add(field);
+                    }
+                }
+                current = current.getSuperclass();
+            }
+            return fields;
+        });
+    }
+
+    /**
+     * 为实体构建所有 @CacheKey 标记的缓存键
+     * @param entity 实体
+     * @param partition 作用区域
+     * @return 返回的这个区域内的查询 key
+     */
+    private List<PartitionedKey<QueryKey>> buildCacheKeyQueryKeys(T entity, PartitionKey partition) {
+        if (entity == null) return Collections.emptyList();
+        List<PartitionedKey<QueryKey>> keys = new ArrayList<>();
+        Class<?> entityClass = entity.getClass();
+        List<Field> cacheKeyFields = getCacheKeyFields(entityClass);
+        for (Field field : cacheKeyFields) {
+            try {
+                Object value = field.get(entity);
+                if (value == null) continue;
+                String columnName = camelToUnderline(field.getName());
+                LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
+                wrapper.apply(columnName + " = {0}", value);
+                QueryKey queryKey = wrapQueryKey(wrapper);
+                keys.add(new PartitionedKey<>(partition, queryKey));
+            } catch (IllegalAccessException e) {
+                this.debug("Failed to access cache key field '{}': {}", field.getName(), e.getMessage());
+            }
+        }
+        return keys;
+    }
+
+    /**
+     * 驼峰转下划线
+     * @param name 字符串
+     * @return 处理过后的返回值
+     */
+    private String camelToUnderline(String name) {
+        if (name == null || name.isEmpty()) return name;
+        StringBuilder result = new StringBuilder();
+        result.append(Character.toLowerCase(name.charAt(0)));
+        for (int i = 1; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (Character.isLowerCase(name.charAt(i - 1))) {
+                    result.append('_');
+                }
+                result.append(Character.toLowerCase(c));
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
+    }
+
+    protected void invalidateEntityCaches(T entity, PartitionKey partition) {
+        PartitionedKey<QueryKey> pkKey = this.buildPrimaryKeyQueryKey(entity, partition);
+        if (pkKey != null) {
+            this.entityCache.invalidate(pkKey);
+            this.pendingEntityFutures.remove(pkKey);
+            this.debug("Invalidated primary key cache: {}", pkKey);
+        }
+
+        List<PartitionedKey<QueryKey>> cacheKeys = this.buildCacheKeyQueryKeys(entity, partition);
+        for (PartitionedKey<QueryKey> key : cacheKeys) {
+            this.entityCache.invalidate(key);
+            this.pendingEntityFutures.remove(key);
+            this.debug("Invalidated cache key: {}", key);
+        }
+    }
+
+    /**
+     * 调试日志输出
      * @param format 格式字符串
      * @param args 参数
      */
@@ -137,12 +225,6 @@ public abstract class EntityRepository<T> {
         log.debug("[{}] " + format, merged);
     }
 
-    /**
-     * 根据查询条件获取单个实体（异步，带缓存）
-     * @param key 查询条件
-     * @param partition 分区键
-     * @return 实体 CompletableFuture，可能为 null
-     */
     public CompletableFuture<T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
         QueryKey queryKey = wrapQueryKey(key);
         PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
@@ -179,8 +261,8 @@ public abstract class EntityRepository<T> {
                 newFuture.completeExceptionally(throwable);
             } else {
                 if (entity != null) {
-                    this.entityCache.put(pKey, entity);
-                    this.debug("Entity cached: {}", pKey);
+                    // 缓存实体到所有可能的键（主键键 + 注解键）
+                    cacheEntity(entity, partition);
                 }
                 newFuture.complete(entity);
             }
@@ -191,13 +273,29 @@ public abstract class EntityRepository<T> {
     }
 
     /**
-     * 分页查询实体列表（异步，带缓存）
-     * @param pageNum 页码（从1开始）
-     * @param pageSize 每页大小
-     * @param condition 查询条件
-     * @param partition 分区键
-     * @return 分页结果 CompletableFuture
+     * 缓存实体到所有相关键
+     * @param entity 具体实体
+     * @param partition 作用区域
      */
+    private void cacheEntity(T entity, PartitionKey partition) {
+        PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
+        if (pkKey != null) {
+            this.entityCache.put(pkKey, entity);
+            this.debug("Entity cached (pk): {}", pkKey);
+        } else {
+            LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
+            pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
+            entityCache.put(pkKey, entity);
+            this.debug("Entity cached (fallback): {}", pkKey);
+        }
+
+        List<PartitionedKey<QueryKey>> cacheKeys = buildCacheKeyQueryKeys(entity, partition);
+        for (PartitionedKey<QueryKey> key : cacheKeys) {
+            this.entityCache.put(key, entity);
+            this.debug("Entity cached (cache-key): {}", key);
+        }
+    }
+
     public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize,
                                                     LambdaQueryWrapper<T> condition,
                                                     PartitionKey partition) {
@@ -237,15 +335,9 @@ public abstract class EntityRepository<T> {
             } else {
                 if (result != null) {
                     this.pageCache.put(pPageKey, result);
-                    // 同时缓存结果中的每个实体，便于后续按主键查询命中
+                    // 同时缓存结果中的每个实体到实体缓存（包括主键键和注解键）
                     for (T entity : result.records()) {
-                        PartitionedKey<QueryKey> entityKey = buildPrimaryKeyQueryKey(entity, partition);
-                        if (entityKey == null) {
-                            LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-                            entityKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
-                        }
-                        this.entityCache.put(entityKey, entity);
-                        this.debug("Entity cached from page result: {}", entityKey);
+                        cacheEntity(entity, partition);
                     }
                 }
                 newFuture.complete(result);
@@ -256,70 +348,43 @@ public abstract class EntityRepository<T> {
         return newFuture;
     }
 
-    /**
-     * 创建实体（异步），成功后会缓存实体并使对应分区的所有分页缓存失效
-     * @param entity 待创建的实体
-     * @param partition 分区键
-     * @return 创建后的实体 CompletableFuture
-     */
     public CompletableFuture<T> create(T entity, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(null);
         }
         return this.manager.create(entity).thenApply(created -> {
             if (created != null) {
-                // 缓存新实体
-                PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(created, partition);
-                if (pkKey != null) {
-                    this.entityCache.put(pkKey, created);
-                } else {
-                    LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(created);
-                    pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
-                    this.entityCache.put(pkKey, created);
-                }
+                this.cacheEntity(created, partition);
                 this.debug("Entity created successfully: {}", created);
-                this.debug("Entity cached after create: {}", pkKey);
-                // 清空该分区所有页缓存（因为新增可能影响分页结果）
                 this.invalidateAllPagesInPartition(partition);
             }
             return created;
         });
     }
 
-    /**
-     * 更新实体（异步），成功后会更新缓存并使对应分区的所有分页缓存失效
-     * @param entity 更新后的实体（应包含主键）
-     * @param key 更新条件（通常应能唯一定位到该实体）
-     * @param partition 分区键
-     * @return 是否更新成功
-     */
     public CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
         }
-        return this.manager.update(entity, key).thenApply(success -> {
-            if (success) {
-                PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
-                if (pkKey == null) {
-                    LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-                    pkKey = new PartitionedKey<>(partition, this.wrapQueryKey(wrapper));
-                }
-                this.entityCache.put(pkKey, entity);
-                this.pendingEntityFutures.remove(pkKey);
-                this.debug("Entity updated successfully: {}", entity);
-                this.debug("Entity cached after update: {}", pkKey);
-                this.invalidateAllPagesInPartition(partition);
+
+        return this.manager.get(key).thenCompose(oldEntity -> {
+            if (oldEntity == null) {
+                this.debug("Entity not found for update with key: {}, partition: {}", key, partition);
+                return CompletableFuture.completedFuture(false);
             }
-            return success;
+
+            return this.manager.update(entity, key).thenApply(success -> {
+                if (!success) return false;
+                this.invalidateEntityCaches(oldEntity, partition);
+                this.cacheEntity(entity, partition);
+                this.invalidateAllPagesInPartition(partition);
+
+                this.debug("Entity updated successfully: {}", entity);
+                return true;
+            });
         });
     }
 
-    /**
-     * 删除实体（异步），成功后会清除缓存并使对应分区的所有分页缓存失效
-     * @param key 删除条件（通常应能唯一定位到该实体）
-     * @param partition 分区键
-     * @return 是否删除成功
-     */
     public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
@@ -331,22 +396,16 @@ public abstract class EntityRepository<T> {
             }
             return this.manager.delete(key).thenApply(success -> {
                 if (!success) return false;
-                PartitionedKey<QueryKey> pkKey = this.buildPrimaryKeyQueryKey(entity, partition);
-                if (pkKey == null) {
-                    LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-                    pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
-                }
-                this.entityCache.invalidate(pkKey);
-                this.pendingEntityFutures.remove(pkKey);
-                this.debug("Entity deleted successfully: {}", entity);
+                this.invalidateEntityCaches(entity, partition);
                 this.invalidateAllPagesInPartition(partition);
+                this.debug("Entity deleted successfully: {}", entity);
                 return true;
             });
         });
     }
 
     /**
-     * 使指定分区的所有分页缓存失效（同时清理对应的 pending future）
+     * 使指定分区的所有分页缓存失效
      * @param partition 分区键
      */
     private void invalidateAllPagesInPartition(PartitionKey partition) {
@@ -372,7 +431,7 @@ public abstract class EntityRepository<T> {
     }
 
     /**
-     * 清空所有缓存（实体+分页）
+     * 清空所有缓存
      */
     public void clearAllCache() {
         this.clearEntityCache();
@@ -381,7 +440,7 @@ public abstract class EntityRepository<T> {
     }
 
     /**
-     * 设置执行模式（同步/异步），委托给 manager
+     * 设置执行模式
      * @param async true 异步，false 同步
      */
     public void setExecutionMode(boolean async) {
@@ -405,7 +464,7 @@ public abstract class EntityRepository<T> {
     }
 
     /**
-     * 中止所有正在进行的加载任务，应在服务器关闭时调用以释放资源。
+     * 中止所有正在进行的加载任务
      */
     public void abort() {
         this.debug("Aborting all pending futures...");
@@ -416,5 +475,4 @@ public abstract class EntityRepository<T> {
         this.manager.shutdown();
         this.debug("All pending futures aborted.");
     }
-
 }
