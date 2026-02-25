@@ -5,6 +5,7 @@ import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
 import com.tty.api.enumType.FunctionType;
+import com.tty.api.utils.GuiNBTKeys;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -26,13 +27,11 @@ public abstract class BaseConfigInventory extends BaseInventory {
     private BaseMenu baseMenu;
     protected Player player;
     private JavaPlugin plugin;
-    private NamespacedKey renderType;
 
     public BaseConfigInventory(JavaPlugin plugin, Player player) {
         this.baseMenu = this.config();
         this.plugin = plugin;
         this.player = player;
-        this.renderType = new NamespacedKey(plugin, "type");
     }
 
     @Override
@@ -64,11 +63,12 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mask = this.config().getMask();
         }
         List<TextComponent> collect = mask.getLore().stream().map(ComponentUtils::text).toList();
+        NamespacedKey key = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_MASK);
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
             itemMeta.displayName(ComponentUtils.text(mask.getName()));
-            itemMeta.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
+            itemMeta.getPersistentDataContainer().set(key, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.inventory.setItem(i, itemStack);
@@ -82,6 +82,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         if (functionItems == null || functionItems.isEmpty()) {
             functionItems = this.config().getFunctionItems();
         }
+        NamespacedKey key = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
         functionItems.forEach((k, v) -> {
             FunctionType functionType = v.getType();
             if (functionType == null) {
@@ -92,7 +93,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             ItemMeta mo = o.getItemMeta();
             mo.displayName(ComponentUtils.text(v.getName()));
             mo.lore(v.getLore().stream().map(ComponentUtils::text).toList());
-            mo.getPersistentDataContainer().set(this.renderType, PersistentDataType.STRING, functionType.name());
+            mo.getPersistentDataContainer().set(key, PersistentDataType.STRING, functionType.name());
             o.setItemMeta(mo);
             for (Integer integer : v.getSlot()) {
                 this.inventory.setItem(integer, o);
@@ -130,7 +131,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
     public void clean() {
         this.baseMenu = null;
         this.player = null;
-        this.renderType = null;
         this.plugin = null;
     }
 
