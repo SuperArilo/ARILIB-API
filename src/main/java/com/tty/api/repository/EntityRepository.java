@@ -235,7 +235,7 @@ public abstract class EntityRepository<T> {
             return CompletableFuture.completedFuture(cached);
         }
 
-        CompletableFuture<T> pending = pendingEntityFutures.get(pKey);
+        CompletableFuture<T> pending = this.pendingEntityFutures.get(pKey);
         if (pending != null) {
             this.debug("Entity pending future found: {}", pKey);
             return pending;
@@ -261,8 +261,8 @@ public abstract class EntityRepository<T> {
                 newFuture.completeExceptionally(throwable);
             } else {
                 if (entity != null) {
-                    // 缓存实体到所有可能的键（主键键 + 注解键）
-                    cacheEntity(entity, partition);
+                    // 缓存实体到所有可能的键
+                    this.cacheEntity(entity, partition);
                 }
                 newFuture.complete(entity);
             }
@@ -285,11 +285,11 @@ public abstract class EntityRepository<T> {
         } else {
             LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
             pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
-            entityCache.put(pkKey, entity);
+            this.entityCache.put(pkKey, entity);
             this.debug("Entity cached (fallback): {}", pkKey);
         }
 
-        List<PartitionedKey<QueryKey>> cacheKeys = buildCacheKeyQueryKeys(entity, partition);
+        List<PartitionedKey<QueryKey>> cacheKeys = this.buildCacheKeyQueryKeys(entity, partition);
         for (PartitionedKey<QueryKey> key : cacheKeys) {
             this.entityCache.put(key, entity);
             this.debug("Entity cached (cache-key): {}", key);
