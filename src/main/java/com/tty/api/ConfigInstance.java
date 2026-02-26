@@ -5,8 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.utils.FormatUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemorySection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -19,8 +21,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ConfigInstance {
 
+    private final JavaPlugin plugin;
+    private final FilePathEnum[] pathList;
+
     protected final Map<String, YamlConfiguration> CONFIGS = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
+
+    public ConfigInstance(JavaPlugin plugin, FilePathEnum[] pathList) {
+        this.plugin = plugin;
+        this.pathList = pathList;
+        this.reload();
+    }
 
     public <E extends Enum<E> & FilePathEnum> String getValue(String keyPath, E filePath) {
         return getValue(keyPath, filePath, String.class, "null");
@@ -77,6 +88,25 @@ public class ConfigInstance {
 
     public void clearConfigs() {
         CONFIGS.clear();
+    }
+
+    public void reload() {
+        this.clearConfigs();
+        FileConfiguration pluginConfig = this.plugin.getConfig();
+        for (FilePathEnum pathEnum : this.pathList) {
+            String langKey = pathEnum.getPath().replace("[lang]", this.plugin.getConfig().getString("lang", "cn"));
+            File file = new File(this.plugin.getDataFolder(), langKey);
+            if (!file.exists()) {
+                this.plugin.saveResource(langKey, true);
+            } else if (pluginConfig.getBoolean("debug.overwrite-file", false)) {
+                try {
+                    this.plugin.saveResource(langKey, true);
+                } catch (Exception e) {
+                    Bukkit.getLogger().severe("can not find file " + pathEnum.getNickName() + ", path: " + pathEnum.getPath());
+                }
+            }
+            this.setConfig(pathEnum.name(), YamlConfiguration.loadConfiguration(file));
+        }
     }
 
 }
