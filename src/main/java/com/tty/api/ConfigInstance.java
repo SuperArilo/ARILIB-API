@@ -94,13 +94,13 @@ public class ConfigInstance {
         this.clearConfigs();
         FileConfiguration pluginConfig = this.plugin.getConfig();
         for (FilePathEnum pathEnum : this.pathList) {
-            String langKey = pathEnum.getPath().replace("[lang]", this.plugin.getConfig().getString("lang", "cn"));
-            File file = new File(this.plugin.getDataFolder(), langKey);
+            String replace = pathEnum.getPath().replace("[lang]", this.plugin.getConfig().getString("lang", "cn"));
+            File file = new File(this.plugin.getDataFolder(), replace);
             if (!file.exists()) {
-                this.plugin.saveResource(langKey, true);
+                this.plugin.saveResource(replace, true);
             } else if (pluginConfig.getBoolean("debug.overwrite-file", false)) {
                 try {
-                    this.plugin.saveResource(langKey, true);
+                    this.plugin.saveResource(replace, true);
                 } catch (Exception e) {
                     Bukkit.getLogger().severe("can not find file " + pathEnum.getNickName() + ", path: " + pathEnum.getPath());
                 }
