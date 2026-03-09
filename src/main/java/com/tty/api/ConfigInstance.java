@@ -24,7 +24,7 @@ public class ConfigInstance {
     private final JavaPlugin plugin;
     private final FilePathEnum[] pathList;
 
-    protected final Map<String, YamlConfiguration> CONFIGS = new ConcurrentHashMap<>();
+    private final Map<String, YamlConfiguration> CONFIGS = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
     public ConfigInstance(JavaPlugin plugin, FilePathEnum[] pathList) {
@@ -76,7 +76,7 @@ public class ConfigInstance {
         if (configuration == null) throw new RuntimeException("Config file not found: " + filePath.name());
 
         values.forEach((k, v) -> configuration.set(topKeyPath + "." + k, v));
-        setConfig(filePath.name(), configuration);
+        this.setConfig(filePath.name(), configuration);
 
         configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
 
