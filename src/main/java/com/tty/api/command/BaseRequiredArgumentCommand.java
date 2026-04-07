@@ -3,6 +3,7 @@ package com.tty.api.command;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.CommandNode;
+import com.tty.api.annotations.command.ArgumentCommand;
 import com.tty.api.annotations.command.CommandMeta;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -23,7 +24,7 @@ public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
         RequiredArgumentBuilder<CommandSourceStack, T> builder = Commands.argument(meta.displayName(), this.argumentType());
         builder.requires(ctx -> this.havePermission(ctx.getSender(), meta.permission()));
         builder.executes(this::preExecute);
-        com.tty.api.annotations.command.ArgumentCommand annotation = this.getClass().getAnnotation(com.tty.api.annotations.command.ArgumentCommand.class);
+        ArgumentCommand annotation = this.getClass().getAnnotation(ArgumentCommand.class);
         if (annotation != null && annotation.isSuggests()) {
             builder.suggests((ctx, b) -> {
                 String input = ctx.getInput().trim().replaceFirst("/", "");
