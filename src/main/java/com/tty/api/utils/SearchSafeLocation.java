@@ -15,70 +15,104 @@ public class SearchSafeLocation {
     private final JavaPlugin plugin;
     private final Scheduler scheduler;
 
+    private int searchCountInChunk = 3;
+
     public SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler) {
         this.plugin = plugin;
         this.scheduler = scheduler;
     }
 
-    public CompletableFuture<Location> search(World world, int x, int z) {
-        CompletableFuture<Location> future = new CompletableFuture<>();
-        final long l = System.currentTimeMillis();
+    public SearchSafeLocation(JavaPlugin plugin, Scheduler scheduler, int searchCountInChunk) {
+        this.plugin = plugin;
+        this.scheduler = scheduler;
+        this.searchCountInChunk = searchCountInChunk;
+        if (this.searchCountInChunk <= 0) {
+            throw new IllegalArgumentException("searchCountInChunk can not set 0.");
+        }
+    }
 
-        int chunkX = x >> 4;
-        int chunkZ = z >> 4;
-        int relativeX = x & 0xF;
-        int relativeZ = z & 0xF;
+    public CompletableFuture<Location> search(World world, int x, int z) {
+
+        CompletableFuture<Location> result = new CompletableFuture<>();
+
+        int count = this.searchCountInChunk;
+
+        world.getChunkAtAsync(x >> 4, z >> 4)
+                .orTimeout(3, TimeUnit.SECONDS)
+                .thenAccept(chunk -> this.attemptSearch(world, chunk, count, result))
+                .exceptionally(i -> {
+                    result.completeExceptionally(i);
+                    return null;
+                });
+
+        return result;
+    }
+
+    //递归搜索
+    private void attemptSearch(World world, Chunk chunk, int tryCount, CompletableFuture<Location> result) {
+        if (result.isDone()) return;
+        this.log.debug("search in chunk count {}.", tryCount);
+
+        tryCount--;
+
+        if (tryCount <= 0) {
+            result.complete(null);
+            return;
+        }
+
+        int chunkLocalX = PublicFunctionUtils.randomGenerator(0, 15);
+        int chunkLocalZ = PublicFunctionUtils.randomGenerator(0, 15);
 
         boolean isNether = world.getEnvironment().equals(World.Environment.NETHER);
 
-        world.getChunkAtAsync(chunkX, chunkZ)
-            .orTimeout(3, TimeUnit.SECONDS)
-            .thenAccept(chunk -> {
-                int highestBlockYAt = isNether ?
-                        this.getSafeNetherY(world, chunk, relativeX, relativeZ) :
-                        chunk.getChunkSnapshot().getHighestBlockYAt(relativeX, relativeZ);
-                if (highestBlockYAt == -1) {
-                    future.complete(null);
-                    return;
-                }
-                scheduler.runAtRegion(plugin, world, chunkX, chunkZ, i -> {
-                    if (this.isLocationSafe(chunk, relativeX, highestBlockYAt, relativeZ)) {
-                        this.log.debug("random location x: {}, y: {}, z: {}, search time: {}ms", x, highestBlockYAt, z, (System.currentTimeMillis() - l));
-                        future.complete(new Location(world, x + 0.5, highestBlockYAt + 1, z + 0.5));
-                    } else {
-                        future.complete(null);
-                    }
-            });
-        }).exceptionally(i -> {
-            future.completeExceptionally(i);
-            return null;
+        int chunkLocalY = isNether ? this.getSafeNetherY(world, chunk, chunkLocalX, chunkLocalZ):chunk.getChunkSnapshot().getHighestBlockYAt(chunkLocalX, chunkLocalZ);
+
+        int finalTryCount = tryCount;
+        if (chunkLocalY == -1) {
+
+            this.scheduler.runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> this.attemptSearch(world, chunk, finalTryCount, result));
+            return;
+        }
+
+        this.scheduler.runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> {
+
+            if (this.isLocationSafe(chunk, chunkLocalX, chunkLocalY, chunkLocalZ)) {
+
+                double newWorldX = (chunk.getX() << 4) + chunkLocalX + 0.5;
+                double newWorldZ = (chunk.getZ() << 4) + chunkLocalZ + 0.5;
+
+                this.log.debug("random location x: {}, y: {}, z: {}.", newWorldX, chunkLocalY, newWorldZ);
+                result.complete(new Location(world, newWorldX, chunkLocalY, newWorldZ));
+            } else {
+                this.attemptSearch(world, chunk, finalTryCount, result);
+            }
+
         });
-        return future;
+
     }
 
     //下界特殊处理
     public int getSafeNetherY(World world, Chunk chunk, int localX, int localZ) {
+        ChunkSnapshot snapshot = chunk.getChunkSnapshot();
+
         final int minHeight = world.getMinHeight();
         final int maxHeight = world.getMaxHeight();
 
         for (int y = maxHeight - 1; y >= minHeight; y--) {
-            Block block = chunk.getBlock(localX, y, localZ);
-            Material type = block.getType();
+            Material footType = snapshot.getBlockType(localX, y, localZ);
 
-            if (!type.isSolid() || block.isPassable()) continue;
+            if (!footType.isSolid() || snapshot.getBlockType(localX, y, localZ).isAir()) continue;
 
-            if (type == Material.LAVA || type == Material.WATER) continue;
+            if (footType == Material.LAVA || footType == Material.WATER) continue;
 
-            if (type == Material.BEDROCK) continue;
+            if (footType == Material.BEDROCK) continue;
 
-            Block above1 = chunk.getBlock(localX, y + 1, localZ);
-            Block above2 = chunk.getBlock(localX, y + 2, localZ);
+            Material above1 = snapshot.getBlockType(localX, y + 1, localZ);
+            Material above2 = snapshot.getBlockType(localX, y + 2, localZ);
 
-            if ((above1.isPassable() || !above1.getType().isSolid()) &&
-                    (above2.isPassable() || !above2.getType().isSolid())) {
-                return y;
-            }
+            if ((above1.isAir() || !above1.isSolid()) && (above2.isAir() || !above2.isSolid())) return y;
         }
+
         return -1;
     }
 
@@ -86,7 +120,7 @@ public class SearchSafeLocation {
 
         //判断Y轴高度合不合法
         if (chunkY < chunk.getWorld().getMinHeight()) {
-            this.log.debug("rtp: illegal Y-axis height.");
+            this.log.debug("illegal Y-axis height.");
             return false;
         }
 
@@ -100,22 +134,20 @@ public class SearchSafeLocation {
         //周围检查
         Material left = block.getRelative(1, 0, 0).getType();
         Material right = block.getRelative(-1, 0, 0).getType();
-        Material front = block.getRelative(0, 1, 0).getType();
-        Material behind = block.getRelative(0, -1, 0).getType();
+        Material front = block.getRelative(0, 0, -1).getType();
+        Material behind = block.getRelative(0, 0,  1).getType();
 
-        if (!isSafeStandingBlock(feet)) {
+        if (isNotSafeStandingBlock(feet)) {
             this.log.debug("standing block illegal.");
             return false;
         }
 
-        if (isSolid(body) || isSolid(head) ||
-                isDangerous(body) || isDangerous(head) ||
-                isDangerous(left) || isDangerous(right) || isDangerous(front) || isDangerous(behind)) {
+        if (this.isSolid(body) || this.isSolid(head) || this.isDangerous(body) || this.isDangerous(head) || this.isDangerous(left) || this.isDangerous(right) || this.isDangerous(front) || this.isDangerous(behind)) {
             this.log.debug("the blocks around the player are illegal.");
             return false;
         }
 
-        if (isDangerous(feet)) {
+        if (this.isDangerous(feet)) {
             this.log.debug("feet block is dangerous.");
             return false;
         }
@@ -124,15 +156,32 @@ public class SearchSafeLocation {
             return false;
         }
 
+        Block belowLeft = block.getRelative( 1, -1, 0);
+        Block belowRight = block.getRelative(-1, -1, 0);
+        Block belowFront = block.getRelative( 0, -1,-1);
+        Block belowBehind = block.getRelative( 0, -1, 1);
+
+        if (this.isNotSafeFloor(belowLeft) || this.isNotSafeFloor(belowRight) || this.isNotSafeFloor(belowFront) || this.isNotSafeFloor(belowBehind)) {
+            this.log.debug("edge detected: missing safe floor around player.");
+            return false;
+        }
+
         return true;
 
     }
 
-    private boolean isSafeStandingBlock(Material material) {
-        return material.isSolid() &&
-                !material.name().contains("LEAVES") &&
-                !material.name().contains("GLASS") &&
-                material != Material.SLIME_BLOCK;
+    private boolean isNotSafeFloor(Block block) {
+        Material type = block.getType();
+        if (type.isAir()) return true;
+        if (this.isDangerous(type)) return true;
+        return !type.isSolid() || this.isNotSafeStandingBlock(type);
+    }
+
+    private boolean isNotSafeStandingBlock(Material material) {
+        return !material.isSolid() ||
+                material.name().contains("LEAVES") ||
+                material.name().contains("GLASS") ||
+                material == Material.SLIME_BLOCK;
     }
 
     private boolean isSolid(Material material) {
