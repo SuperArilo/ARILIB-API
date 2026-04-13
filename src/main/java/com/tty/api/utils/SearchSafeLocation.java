@@ -51,7 +51,7 @@ public class SearchSafeLocation {
     //递归搜索
     private void attemptSearch(World world, Chunk chunk, int tryCount, CompletableFuture<Location> result) {
         if (result.isDone()) return;
-        this.log.debug("search in chunk count {}.", tryCount);
+        this.log.debug("search in chunk count {}. total {}.", tryCount, this.searchCountInChunk);
 
         tryCount--;
 
