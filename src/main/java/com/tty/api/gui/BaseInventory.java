@@ -33,7 +33,7 @@ public abstract class BaseInventory implements InventoryHolder {
     public String getType() {
         GuiMeta annotation = this.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) {
-            throw new NullPointerException("gui type is null");
+            throw new IllegalStateException("gui type is null");
         }
         return annotation.type();
     }
