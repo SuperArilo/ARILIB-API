@@ -5,6 +5,8 @@ import org.bukkit.entity.Player;
 
 public interface InteractService {
 
+    String pluginName();
+
     boolean canBuild(Location location);
 
     boolean canBuild(Location location, Player player);
