@@ -124,6 +124,10 @@ public abstract class BaseConfigInventory extends BaseInventory {
      * @param <T> 类型 T
      */
     protected <T> void setNBT(@NotNull ItemMeta itemMeta, String key, PersistentDataType<T, T> type, T value) {
+        if (this.plugin == null) {
+            this.getLog().debug("plugin in inventory is null, cannot set NBT for key: {}", key);
+            return;
+        }
         itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.plugin, key), type, value);
     }
 
