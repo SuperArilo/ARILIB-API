@@ -38,9 +38,10 @@ public class SearchSafeLocation {
         int count = this.searchCountInChunk;
 
         world.getChunkAtAsync(x >> 4, z >> 4)
-                .orTimeout(3, TimeUnit.SECONDS)
+                .orTimeout(5, TimeUnit.SECONDS)
                 .thenAccept(chunk -> this.attemptSearch(world, chunk, count, result))
                 .exceptionally(i -> {
+                    this.log.debug("chunk load failed: {}", i.toString());
                     result.completeExceptionally(i);
                     return null;
                 });
@@ -51,14 +52,15 @@ public class SearchSafeLocation {
     //递归搜索
     private void attemptSearch(World world, Chunk chunk, int tryCount, CompletableFuture<Location> result) {
         if (result.isDone()) return;
-        this.log.debug("search in chunk count {}. total {}.", tryCount, this.searchCountInChunk);
-
-        tryCount--;
+        this.log.debug("search in chunk count {}. total {}. chunk info: x: {}, z: {}", tryCount, this.searchCountInChunk, chunk.getX(), chunk.getZ());
 
         if (tryCount <= 0) {
+            this.log.debug("chunk x: {}, z: {}, search attempts exhausted, giving up.", chunk.getX(), chunk.getZ());
             result.complete(null);
             return;
         }
+
+        tryCount--;
 
         int chunkLocalX = PublicFunctionUtils.randomGenerator(0, 15);
         int chunkLocalZ = PublicFunctionUtils.randomGenerator(0, 15);
@@ -67,26 +69,24 @@ public class SearchSafeLocation {
 
         int chunkLocalY = isNether ? this.getSafeNetherY(world, chunk, chunkLocalX, chunkLocalZ):chunk.getChunkSnapshot().getHighestBlockYAt(chunkLocalX, chunkLocalZ);
 
-        int finalTryCount = tryCount;
-        if (chunkLocalY == -1) {
+        double newWorldX = (chunk.getX() << 4) + chunkLocalX + 0.5;
+        double newWorldZ = (chunk.getZ() << 4) + chunkLocalZ + 0.5;
 
+        this.log.debug("checking random location: x: {}, y: {}, z: {} is safe.", newWorldX, chunkLocalY, newWorldZ);
+
+        int finalTryCount = tryCount;
+        if (chunkLocalY == Integer.MAX_VALUE) {
             this.scheduler.runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> this.attemptSearch(world, chunk, finalTryCount, result));
             return;
         }
 
         this.scheduler.runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> {
-
             if (this.isLocationSafe(chunk, chunkLocalX, chunkLocalY, chunkLocalZ)) {
-
-                double newWorldX = (chunk.getX() << 4) + chunkLocalX + 0.5;
-                double newWorldZ = (chunk.getZ() << 4) + chunkLocalZ + 0.5;
-
-                this.log.debug("random location x: {}, y: {}, z: {}.", newWorldX, chunkLocalY, newWorldZ);
+                this.log.debug("random location x: {}, y: {}, z: {} safe. return result.", newWorldX, chunkLocalY, newWorldZ);
                 result.complete(new Location(world, newWorldX, chunkLocalY, newWorldZ));
             } else {
                 this.attemptSearch(world, chunk, finalTryCount, result);
             }
-
         });
 
     }
@@ -113,7 +113,7 @@ public class SearchSafeLocation {
             if ((above1.isAir() || !above1.isSolid()) && (above2.isAir() || !above2.isSolid())) return y;
         }
 
-        return -1;
+        return Integer.MAX_VALUE;
     }
 
     private boolean isLocationSafe(Chunk chunk, int chunkX, int chunkY, int chunkZ) {
