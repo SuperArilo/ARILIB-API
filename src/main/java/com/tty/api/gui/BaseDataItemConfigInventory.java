@@ -90,8 +90,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             consumer.accept(PageResult.build(List.of(), 0, 0, this.pageNum));
             return;
         }
-        if (this.currentRequest != future) return;
-
+        if (this.currentRequest == future) return;
         this.currentRequest = future;
         this.loading = true;
         future.thenAccept(result -> {
