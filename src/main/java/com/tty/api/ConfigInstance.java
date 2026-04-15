@@ -3,6 +3,7 @@ package com.tty.api;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.utils.FormatUtils;
 import org.bukkit.Bukkit;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 
+@SuppressWarnings("UnstableApiUsage")
 public class ConfigInstance {
 
     private final JavaPlugin plugin;
@@ -84,16 +86,27 @@ public class ConfigInstance {
         return path == null || path.isEmpty();
     }
 
-    public <T extends Enum<T> & FilePathEnum> void setValue(JavaPlugin plugin, String topKeyPath, T filePath, Map<String, Object> values) throws IOException {
+    public <T extends Enum<T> & FilePathEnum, S> void setValue(JavaPlugin plugin, String topKeyPath, T filePath, Map<String, S> values) throws IOException {
 
         YamlConfiguration configuration = this.getObject(filePath.name());
-        if (configuration == null) throw new RuntimeException("Config file not found: " + filePath.name());
+        if (configuration == null) throw new NullPointerException("Config file not found: " + filePath.name());
 
-        values.forEach((k, v) -> configuration.set(topKeyPath + "." + k, v));
+        values.forEach((k, v) -> {
+            Object valueToSave = v;
+            if (!(v instanceof Map) && !(v instanceof String) && !(v instanceof Number) && !(v instanceof Boolean)) {
+                try {
+                    valueToSave = this.gson.fromJson(this.gson.toJson(v), new TypeToken<Map<String, Object>>(){}.getType());
+                } catch (JsonSyntaxException e) {
+                    Bukkit.getLogger().warning("Gson JSON syntax error for key '" + k + "': " + e.getMessage());
+                } catch (Exception e) {
+                    Bukkit.getLogger().warning("Unexpected error converting key '" + k + "': " + e.getMessage());
+                }
+            }
+            configuration.set(topKeyPath + "." + k, valueToSave);
+        });
+
         this.setConfig(filePath.name(), configuration);
-
         configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
-
     }
 
     public void setConfig(String name, YamlConfiguration instance) {
