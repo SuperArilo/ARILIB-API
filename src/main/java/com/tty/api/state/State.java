@@ -1,29 +1,41 @@
 package com.tty.api.state;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.entity.Entity;
 
-@Data
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class State {
 
-    private Entity owner;
+    @Getter
+    private final Entity owner;
+
     /**
      * 基础计数
      */
-    private int count = 0;
+    @Getter
+    @Setter
+    private AtomicInteger count = new AtomicInteger(0);
+
     /**
      * 最大检查计数
      */
-    private int max_count;
+    @Getter
+    private final int max_count;
 
     /**
      * 是否提前结束
      */
+    @Getter
+    @Setter
     private volatile boolean isOver = false;
 
     /**
      * 当前的次数是否在进行中
      */
+    @Getter
+    @Setter
     private volatile boolean pending = false;
 
     public State(Entity owner, int max_count) {
@@ -32,13 +44,23 @@ public class State {
     }
 
     public void increment() {
-        if (this.count < this.max_count) {
-            this.count++;
-        }
+        this.count.updateAndGet(current -> current < this.max_count ? current + 1 : current);
     }
 
     public boolean isDone() {
-        return this.count >= this.max_count;
+        return this.count.get() >= this.max_count;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof State state)) return false;
+        return this.owner != null && this.owner.equals(state.owner);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.owner != null ? this.owner.hashCode() : 0;
     }
 
 }

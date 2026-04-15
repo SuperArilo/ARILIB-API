@@ -30,7 +30,9 @@ public abstract class StateService<T extends State> {
      */
     @Getter
     private final boolean isAsync;
-    private CancellableTask task;
+
+    private final Object lock = new Object();
+    private volatile CancellableTask task;
 
     protected final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
 
@@ -51,13 +53,20 @@ public abstract class StateService<T extends State> {
     }
 
     private void execute() {
-        if (stateList.isEmpty()) {
-            this.abort();
+        if (this.stateList.isEmpty()) {
+            synchronized (this.lock) {
+                if (this.stateList.isEmpty()) {
+                    if (this.task != null) {
+                        this.task.cancel();
+                        this.task = null;
+                    }
+                }
+            }
             return;
         }
 
-        synchronized (stateList) {
-            Iterator<T> iterator = stateList.iterator();
+        synchronized (this.stateList) {
+            Iterator<T> iterator = this.stateList.iterator();
             while (iterator.hasNext()) {
                 T state = iterator.next();
 
@@ -96,14 +105,35 @@ public abstract class StateService<T extends State> {
     }
 
     public void abort() {
-        if (this.task == null) return;
-        this.task.cancel();
-        this.task = null;
-
-        for (T i : this.stateList) {
-            this.onServiceAbort(i);
+        synchronized (this.lock) {
+            if (this.task != null) {
+                this.task.cancel();
+                this.task = null;
+            }
         }
-        this.stateList.clear();
+        synchronized (this.stateList) {
+            for (T i : this.stateList) {
+                this.onServiceAbort(i);
+            }
+            this.stateList.clear();
+        }
+    }
+
+    public void reload() {
+        synchronized (this.lock) {
+            if (this.task != null) {
+                this.task.cancel();
+                this.task = null;
+            }
+        }
+
+        synchronized (this.stateList) {
+            for (T i : this.stateList) {
+                this.onReload(i);
+            }
+        }
+
+        this.task = this.createTask(rate, c, isAsync, this.plugin);
     }
 
     public boolean addState(T state) {
@@ -114,8 +144,11 @@ public abstract class StateService<T extends State> {
             }
             this.stateList.add(state);
             this.passAddState(state);
-            if (task == null) {
-                this.task = createTask(rate, c, isAsync, this.plugin);
+
+            synchronized (this.lock) {
+                if (task == null) {
+                    this.task = this.createTask(this.rate, this.c, this.isAsync, this.plugin);
+                }
             }
             return true;
         }
@@ -129,7 +162,7 @@ public abstract class StateService<T extends State> {
 
     public List<T> getStates(Entity owner) {
         synchronized (this.stateList) {
-            return stateList.stream()
+            return this.stateList.stream()
                     .filter(i -> i.getOwner().equals(owner))
                     .toList();
         }
@@ -137,7 +170,7 @@ public abstract class StateService<T extends State> {
 
     public boolean removeState(T state) {
         synchronized (this.stateList) {
-            return stateList.remove(state);
+            return this.stateList.remove(state);
         }
     }
 
@@ -191,5 +224,11 @@ public abstract class StateService<T extends State> {
      * @param state 被通知的每个状态
      */
     protected abstract void onServiceAbort(T state);
+
+    /**
+     * 当插件重载的时候运行
+     * @param state 被通知的每个状态
+     */
+    protected abstract void onReload(T state);
 
 }
