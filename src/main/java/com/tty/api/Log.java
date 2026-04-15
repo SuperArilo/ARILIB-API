@@ -13,6 +13,8 @@ public class Log {
 
     private final Logger logger = Bukkit.getLogger();
 
+    private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+
     @Getter
     @Setter
     private volatile boolean debug = false;
@@ -188,15 +190,14 @@ public class Log {
     }
 
     private String getCallerClassName() {
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        for (StackTraceElement element : stack) {
-            String className = element.getClassName();
-            if (!className.equals(Log.class.getName())
-                    && !className.startsWith("java.lang.Thread")) {
-                return this.colorize(className);
-            }
-        }
-        return this.colorize("Unknown");
+        String className = STACK_WALKER.walk(frames ->
+                frames.dropWhile(frame -> frame.getDeclaringClass() == Log.class)
+                        .findFirst()
+                        .map(StackWalker.StackFrame::getDeclaringClass)
+                        .map(Class::getName)
+                        .orElse("Unknown")
+        );
+        return colorize(className);
     }
 
     private String randomColor() {
