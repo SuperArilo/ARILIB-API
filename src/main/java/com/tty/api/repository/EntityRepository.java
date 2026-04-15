@@ -58,7 +58,7 @@ public abstract class EntityRepository<T> {
         this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");
     }
 
-    public @Nullable CompletableFuture<T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
+    public CompletableFuture<@Nullable T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
         QueryKey queryKey = wrapQueryKey(key);
         PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
 
@@ -105,7 +105,7 @@ public abstract class EntityRepository<T> {
         return newFuture;
     }
 
-    public @Nullable CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
+    public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
         QueryKey queryKey = wrapQueryKey(condition);
         PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
         PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
@@ -155,7 +155,7 @@ public abstract class EntityRepository<T> {
         return newFuture;
     }
 
-    public @Nullable CompletableFuture<T> create(T entity, PartitionKey partition) {
+    public CompletableFuture<@Nullable T> create(T entity, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -169,7 +169,7 @@ public abstract class EntityRepository<T> {
         });
     }
 
-    public @Nullable CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
+    public CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
         }
@@ -192,7 +192,7 @@ public abstract class EntityRepository<T> {
         });
     }
 
-    public @Nullable CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
+    public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
         }
