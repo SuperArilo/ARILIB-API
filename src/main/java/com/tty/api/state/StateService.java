@@ -119,23 +119,6 @@ public abstract class StateService<T extends State> {
         }
     }
 
-    public void reload() {
-        synchronized (this.lock) {
-            if (this.task != null) {
-                this.task.cancel();
-                this.task = null;
-            }
-        }
-
-        synchronized (this.stateList) {
-            for (T i : this.stateList) {
-                this.onReload(i);
-            }
-        }
-
-        this.task = this.createTask(rate, c, isAsync, this.plugin);
-    }
-
     public boolean addState(T state) {
         synchronized (this.stateList) {
             if (!this.canAddState(state)) {
@@ -227,8 +210,7 @@ public abstract class StateService<T extends State> {
 
     /**
      * 当插件重载的时候运行
-     * @param state 被通知的每个状态
      */
-    protected abstract void onReload(T state);
+    public abstract void onReload();
 
 }
