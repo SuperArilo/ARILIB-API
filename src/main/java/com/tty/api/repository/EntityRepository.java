@@ -11,9 +11,13 @@ import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
 import com.tty.api.utils.BaseDataManager;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -49,13 +53,162 @@ public abstract class EntityRepository<T> {
     // 缓存实体类中被 @CacheKey 标记的字段列表
     private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
 
-    /**
-     * 构造方法，注入数据管理器
-     * @param manager 实际执行数据库操作的管理器
-     */
     public EntityRepository(BaseDataManager<T> manager) {
         this.manager = manager;
         this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");
+    }
+
+    public @Nullable CompletableFuture<T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
+        QueryKey queryKey = wrapQueryKey(key);
+        PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
+
+        T cached = this.entityCache.getIfPresent(pKey);
+        if (cached != null) {
+            this.debug("Entity cache hit: {}", pKey);
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        CompletableFuture<T> pending = this.pendingEntityFutures.get(pKey);
+        if (pending != null) {
+            this.debug("Entity pending future found: {}", pKey);
+            return pending;
+        }
+
+        CompletableFuture<T> newFuture = new CompletableFuture<>();
+        CompletableFuture<T> existing = this.pendingEntityFutures.putIfAbsent(pKey, newFuture);
+        if (existing != null) {
+            this.debug("Entity pending future (race) found: {}", pKey);
+            return existing;
+        }
+
+        this.debug("Entity cache miss: {}, loading from DB", pKey);
+        if (this.manager == null) {
+            newFuture.complete(null);
+            this.pendingEntityFutures.remove(pKey, newFuture);
+            return newFuture;
+        }
+
+        this.manager.get(key).whenComplete((entity, throwable) -> {
+            if (throwable != null) {
+                this.debug("Error loading entity for key {}: {}", pKey, throwable.getMessage());
+                newFuture.completeExceptionally(throwable);
+            } else {
+                if (entity != null) {
+                    // 缓存实体到所有可能的键
+                    this.cacheEntity(entity, partition);
+                }
+                newFuture.complete(entity);
+            }
+            this.pendingEntityFutures.remove(pKey, newFuture);
+        });
+
+        return newFuture;
+    }
+
+    public @Nullable CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
+        QueryKey queryKey = wrapQueryKey(condition);
+        PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
+        PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
+
+        PageResult<T> cached = this.pageCache.getIfPresent(pPageKey);
+        if (cached != null) {
+            this.debug("Page cache hit: {}", pPageKey);
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        CompletableFuture<PageResult<T>> pending = this.pendingPageFutures.get(pPageKey);
+        if (pending != null) {
+            this.debug("Page pending future found: {}", pPageKey);
+            return pending;
+        }
+
+        CompletableFuture<PageResult<T>> newFuture = new CompletableFuture<>();
+        CompletableFuture<PageResult<T>> existing = this.pendingPageFutures.putIfAbsent(pPageKey, newFuture);
+        if (existing != null) {
+            return existing;
+        }
+
+        this.debug("Page cache miss: {}, querying DB", pPageKey);
+        if (this.manager == null) {
+            newFuture.complete(PageResult.build(Collections.emptyList(), 0, 0, pageNum));
+            this.pendingPageFutures.remove(pPageKey, newFuture);
+            return newFuture;
+        }
+
+        this.manager.getList(pageNum, pageSize, condition).whenComplete((result, throwable) -> {
+            if (throwable != null) {
+                this.debug("Error loading page for key {}: {}", pPageKey, throwable.getMessage());
+                newFuture.completeExceptionally(throwable);
+            } else {
+                if (result != null) {
+                    this.pageCache.put(pPageKey, result);
+                    // 同时缓存结果中的每个实体到实体缓存（包括主键键和注解键）
+                    for (T entity : result.records()) {
+                        cacheEntity(entity, partition);
+                    }
+                }
+                newFuture.complete(result);
+            }
+            this.pendingPageFutures.remove(pPageKey, newFuture);
+        });
+
+        return newFuture;
+    }
+
+    public @Nullable CompletableFuture<T> create(T entity, PartitionKey partition) {
+        if (this.manager == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return this.manager.create(entity).thenApply(created -> {
+            if (created != null) {
+                this.cacheEntity(created, partition);
+                this.debug("Entity created successfully: {}", created);
+                this.invalidateAllPagesInPartition(partition);
+            }
+            return created;
+        });
+    }
+
+    public @Nullable CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
+        if (this.manager == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return this.manager.get(key).thenCompose(oldEntity -> {
+            if (oldEntity == null) {
+                this.debug("Entity not found for update with key: {}, partition: {}", key, partition);
+                return CompletableFuture.completedFuture(false);
+            }
+
+            return this.manager.update(entity, key).thenApply(success -> {
+                if (!success) return false;
+                this.invalidateEntityCaches(oldEntity, partition);
+                this.cacheEntity(entity, partition);
+                this.invalidateAllPagesInPartition(partition);
+
+                this.debug("Entity updated successfully: {}", entity);
+                return true;
+            });
+        });
+    }
+
+    public @Nullable CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
+        if (this.manager == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return this.manager.get(key).thenCompose(entity -> {
+            if (entity == null) {
+                this.debug("Entity not found for deletion with key: {}, partition: {}", key, partition);
+                return CompletableFuture.completedFuture(false);
+            }
+            return this.manager.delete(key).thenApply(success -> {
+                if (!success) return false;
+                this.invalidateEntityCaches(entity, partition);
+                this.invalidateAllPagesInPartition(partition);
+                this.debug("Entity deleted successfully: {}", entity);
+                return true;
+            });
+        });
     }
 
     /**
@@ -63,7 +216,7 @@ public abstract class EntityRepository<T> {
      * @param wrapper 查询条件
      * @return 查询键
      */
-    protected QueryKey wrapQueryKey(LambdaQueryWrapper<T> wrapper) {
+    private QueryKey wrapQueryKey(LambdaQueryWrapper<T> wrapper) {
         return QueryKey.of(wrapper);
     }
 
@@ -197,7 +350,7 @@ public abstract class EntityRepository<T> {
         return result.toString();
     }
 
-    protected void invalidateEntityCaches(T entity, PartitionKey partition) {
+    private void invalidateEntityCaches(T entity, PartitionKey partition) {
         PartitionedKey<QueryKey> pkKey = this.buildPrimaryKeyQueryKey(entity, partition);
         if (pkKey != null) {
             this.entityCache.invalidate(pkKey);
@@ -218,58 +371,11 @@ public abstract class EntityRepository<T> {
      * @param format 格式字符串
      * @param args 参数
      */
-    protected final void debug(String format, Object... args) {
+    private void debug(String format, Object... args) {
         Object[] merged = new Object[args.length + 1];
         merged[0] = getClass().getSimpleName();
         System.arraycopy(args, 0, merged, 1, args.length);
         log.debug("[{}] " + format, merged);
-    }
-
-    public CompletableFuture<T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
-        QueryKey queryKey = wrapQueryKey(key);
-        PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
-
-        T cached = this.entityCache.getIfPresent(pKey);
-        if (cached != null) {
-            this.debug("Entity cache hit: {}", pKey);
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        CompletableFuture<T> pending = this.pendingEntityFutures.get(pKey);
-        if (pending != null) {
-            this.debug("Entity pending future found: {}", pKey);
-            return pending;
-        }
-
-        CompletableFuture<T> newFuture = new CompletableFuture<>();
-        CompletableFuture<T> existing = this.pendingEntityFutures.putIfAbsent(pKey, newFuture);
-        if (existing != null) {
-            this.debug("Entity pending future (race) found: {}", pKey);
-            return existing;
-        }
-
-        this.debug("Entity cache miss: {}, loading from DB", pKey);
-        if (this.manager == null) {
-            newFuture.complete(null);
-            this.pendingEntityFutures.remove(pKey, newFuture);
-            return newFuture;
-        }
-
-        this.manager.get(key).whenComplete((entity, throwable) -> {
-            if (throwable != null) {
-                this.debug("Error loading entity for key {}: {}", pKey, throwable.getMessage());
-                newFuture.completeExceptionally(throwable);
-            } else {
-                if (entity != null) {
-                    // 缓存实体到所有可能的键
-                    this.cacheEntity(entity, partition);
-                }
-                newFuture.complete(entity);
-            }
-            this.pendingEntityFutures.remove(pKey, newFuture);
-        });
-
-        return newFuture;
     }
 
     /**
@@ -294,114 +400,6 @@ public abstract class EntityRepository<T> {
             this.entityCache.put(key, entity);
             this.debug("Entity cached (cache-key): {}", key);
         }
-    }
-
-    public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize,
-                                                    LambdaQueryWrapper<T> condition,
-                                                    PartitionKey partition) {
-        QueryKey queryKey = wrapQueryKey(condition);
-        PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
-        PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
-
-        PageResult<T> cached = this.pageCache.getIfPresent(pPageKey);
-        if (cached != null) {
-            this.debug("Page cache hit: {}", pPageKey);
-            return CompletableFuture.completedFuture(cached);
-        }
-
-        CompletableFuture<PageResult<T>> pending = this.pendingPageFutures.get(pPageKey);
-        if (pending != null) {
-            this.debug("Page pending future found: {}", pPageKey);
-            return pending;
-        }
-
-        CompletableFuture<PageResult<T>> newFuture = new CompletableFuture<>();
-        CompletableFuture<PageResult<T>> existing = this.pendingPageFutures.putIfAbsent(pPageKey, newFuture);
-        if (existing != null) {
-            return existing;
-        }
-
-        this.debug("Page cache miss: {}, querying DB", pPageKey);
-        if (this.manager == null) {
-            newFuture.complete(PageResult.build(Collections.emptyList(), 0, 0, pageNum));
-            this.pendingPageFutures.remove(pPageKey, newFuture);
-            return newFuture;
-        }
-
-        this.manager.getList(pageNum, pageSize, condition).whenComplete((result, throwable) -> {
-            if (throwable != null) {
-                this.debug("Error loading page for key {}: {}", pPageKey, throwable.getMessage());
-                newFuture.completeExceptionally(throwable);
-            } else {
-                if (result != null) {
-                    this.pageCache.put(pPageKey, result);
-                    // 同时缓存结果中的每个实体到实体缓存（包括主键键和注解键）
-                    for (T entity : result.records()) {
-                        cacheEntity(entity, partition);
-                    }
-                }
-                newFuture.complete(result);
-            }
-            this.pendingPageFutures.remove(pPageKey, newFuture);
-        });
-
-        return newFuture;
-    }
-
-    public CompletableFuture<T> create(T entity, PartitionKey partition) {
-        if (this.manager == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return this.manager.create(entity).thenApply(created -> {
-            if (created != null) {
-                this.cacheEntity(created, partition);
-                this.debug("Entity created successfully: {}", created);
-                this.invalidateAllPagesInPartition(partition);
-            }
-            return created;
-        });
-    }
-
-    public CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
-        if (this.manager == null) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        return this.manager.get(key).thenCompose(oldEntity -> {
-            if (oldEntity == null) {
-                this.debug("Entity not found for update with key: {}, partition: {}", key, partition);
-                return CompletableFuture.completedFuture(false);
-            }
-
-            return this.manager.update(entity, key).thenApply(success -> {
-                if (!success) return false;
-                this.invalidateEntityCaches(oldEntity, partition);
-                this.cacheEntity(entity, partition);
-                this.invalidateAllPagesInPartition(partition);
-
-                this.debug("Entity updated successfully: {}", entity);
-                return true;
-            });
-        });
-    }
-
-    public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
-        if (this.manager == null) {
-            return CompletableFuture.completedFuture(false);
-        }
-        return this.manager.get(key).thenCompose(entity -> {
-            if (entity == null) {
-                this.debug("Entity not found for deletion with key: {}, partition: {}", key, partition);
-                return CompletableFuture.completedFuture(false);
-            }
-            return this.manager.delete(key).thenApply(success -> {
-                if (!success) return false;
-                this.invalidateEntityCaches(entity, partition);
-                this.invalidateAllPagesInPartition(partition);
-                this.debug("Entity deleted successfully: {}", entity);
-                return true;
-            });
-        });
     }
 
     /**
