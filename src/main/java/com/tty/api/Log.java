@@ -77,29 +77,29 @@ public class Log {
     }
 
     public void debug(String msg, Object... args) {
-        if (!debug) return;
+        if (!this.debug) return;
         log(Level.INFO, PREFIX_DEBUG + this.wrapCaller(msg), args);
     }
 
     public void debug(Throwable throwable, String msg, Object... args) {
-        if (!debug) return;
+        if (!this.debug) return;
         log(Level.INFO, throwable, PREFIX_DEBUG + this.wrapCaller(msg), args);
     }
 
     private void log(Level level, String msg, Object... args) {
         if (this.shouldNotLog(level)) return;
 
-        logger.log(level, this.formatMessage(msg, args));
+        this.logger.log(level, this.formatMessage(msg, args));
     }
 
     private void log(Level level, Throwable throwable, String msg, Object... args) {
         if (this.shouldNotLog(level)) return;
 
         String message = (msg == null)
-                ? wrapCaller(throwable.getMessage())
+                ? this.wrapCaller(throwable.getMessage())
                 : this.formatMessage(msg, args);
 
-        logger.log(level, message, throwable);
+        this.logger.log(level, message, throwable);
     }
 
     private boolean shouldNotLog(Level level) {
@@ -176,7 +176,7 @@ public class Log {
 
     private void appendArg(StringBuilder sb, Object arg) {
         String value = String.valueOf(arg);
-        if (enableColor) {
+        if (this.enableColor) {
             sb.append(this.randomColor())
                     .append(value)
                     .append(ANSI_RESET);
@@ -197,7 +197,7 @@ public class Log {
                         .map(Class::getName)
                         .orElse("Unknown")
         );
-        return colorize(className);
+        return this.colorize(className);
     }
 
     private String randomColor() {
@@ -205,7 +205,7 @@ public class Log {
     }
 
     private String colorize(String text) {
-        if (!enableColor || text == null || text.isEmpty()) {
+        if (!this.enableColor || text == null || text.isEmpty()) {
             return text;
         }
         return this.randomColor() + text + ANSI_RESET;
