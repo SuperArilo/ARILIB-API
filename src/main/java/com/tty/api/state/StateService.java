@@ -65,40 +65,40 @@ public abstract class StateService<T extends State> {
             return;
         }
 
-        synchronized (this.stateList) {
-            Iterator<T> iterator = this.stateList.iterator();
-            while (iterator.hasNext()) {
-                T state = iterator.next();
+        Iterator<T> iterator = this.stateList.iterator();
+        while (iterator.hasNext()) {
+            T state = iterator.next();
 
-                if (state.isOver()) {
-                    iterator.remove();
-                    this.onEarlyExit(state);
-                    continue;
-                }
+            if (state.isOver()) {
+                iterator.remove();
+                this.onEarlyExit(state);
+                continue;
+            }
 
-                if (state.isDone()) {
-                    iterator.remove();
-                    this.onFinished(state);
-                    continue;
-                }
+            if (state.isDone()) {
+                if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+                iterator.remove();
+                this.onFinished(state);
+                continue;
+            }
 
-                if (!state.isPending()) {
-                    state.setPending(true);
-                    try {
-                        state.increment();
-                        this.loopExecution(state);
-                        if (state.isOver()) {
-                            iterator.remove();
-                            this.onEarlyExit(state);
-                            continue;
-                        }
-                        if (state.isDone()) {
-                            iterator.remove();
-                            this.onFinished(state);
-                        }
-                    } finally {
-                        state.setPending(false);
+            if (!state.isPending()) {
+                state.setPending(true);
+                try {
+                    state.increment();
+                    this.loopExecution(state);
+                    if (state.isOver()) {
+                        iterator.remove();
+                        this.onEarlyExit(state);
+                        continue;
                     }
+                    if (state.isDone()) {
+                        if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+                        iterator.remove();
+                        this.onFinished(state);
+                    }
+                } finally {
+                    state.setPending(false);
                 }
             }
         }
