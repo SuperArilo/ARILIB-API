@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 
 public class ConfigInstance {
@@ -45,20 +46,33 @@ public class ConfigInstance {
     }
 
     public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Type type, T defaultValue) throws JsonSyntaxException {
-        if (checkPath(keyPath)) return defaultValue;
+        if (this.checkPath(keyPath)) return defaultValue;
 
         YamlConfiguration fileConfiguration = this.getObject(filePath.name());
         if (fileConfiguration == null) return defaultValue;
 
-        Object value = fileConfiguration.get(keyPath);
-        if (value == null)  return defaultValue;
+        Object value = fileConfiguration.get(keyPath, defaultValue);
+
+        if (value == null) return null;
 
         if (value instanceof MemorySection) {
             YamlConfiguration tempConfig = new YamlConfiguration();
             FormatUtils.copySectionToYamlConfiguration((ConfigurationSection) value, tempConfig);
             return FormatUtils.yamlConvertToObj(tempConfig.saveToString(), type);
         } else {
-            return this.gson.fromJson(this.gson.toJsonTree(value), type);
+            try {
+                return this.gson.fromJson(this.gson.toJsonTree(value), type);
+            } catch (Exception e) {
+                String errorMsg = String.format(
+                        "config conversion failed at path '%s'. Value type: %s, Value: %s, target type: %s",
+                        keyPath,
+                        value.getClass().getName(),
+                        value,
+                        type.getTypeName()
+                );
+                Bukkit.getLogger().log(Level.SEVERE, errorMsg, e);
+                throw new JsonSyntaxException("Failed to parse config value: " + keyPath, e);
+            }
         }
     }
 
