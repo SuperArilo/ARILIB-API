@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.tty.api.BaseJavaPlugin;
 import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import net.kyori.adventure.text.Component;
@@ -10,8 +11,12 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseInventory implements InventoryHolder {
 
-    private static final Log log = Log.create();
+    private BaseJavaPlugin plugin;
     protected Inventory inventory;
+
+    protected BaseInventory(BaseJavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     @Override
     public @NotNull Inventory getInventory() {
@@ -45,15 +50,16 @@ public abstract class BaseInventory implements InventoryHolder {
             this.inventory.clear();
         }
         this.inventory = null;
+        this.plugin = null;
         this.clean();
     }
 
     protected Log getLog() {
-        return log;
+        return this.plugin.getLog();
     }
 
-    protected void debug(boolean debug) {
-        log.setDebug(debug);
+    protected BaseJavaPlugin getBaseJavaPlugin() {
+        return this.plugin;
     }
 
 }

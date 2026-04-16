@@ -6,7 +6,6 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.utils.FormatUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -18,19 +17,17 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 
-@SuppressWarnings("UnstableApiUsage")
 public class ConfigInstance {
 
-    private final JavaPlugin plugin;
+    private final BaseJavaPlugin plugin;
     private final FilePathEnum[] pathList;
 
     private final Map<String, YamlConfiguration> CONFIGS = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
-    public ConfigInstance(JavaPlugin plugin, FilePathEnum[] pathList) {
+    public ConfigInstance(BaseJavaPlugin plugin, FilePathEnum[] pathList) {
         this.plugin = plugin;
         this.pathList = pathList;
         this.reload();
@@ -65,17 +62,14 @@ public class ConfigInstance {
             try {
                 return this.gson.fromJson(this.gson.toJsonTree(value), type);
             } catch (Exception e) {
-                String errorMsg = String.format(
-                        "config conversion failed at path '%s'. Value type: %s, Value: %s, target type: %s",
+                this.plugin.getLog().warn(e, "config conversion failed at path {}. Value type: {}, Value: {}, target type: {}",
                         keyPath,
                         value.getClass().getName(),
                         value,
-                        type.getTypeName()
-                );
-                Bukkit.getLogger().log(Level.SEVERE, errorMsg, e);
-                throw new JsonSyntaxException("Failed to parse config value: " + keyPath, e);
+                        type.getTypeName());
             }
         }
+        return defaultValue;
     }
 
     public YamlConfiguration getObject(String fileName) {
@@ -97,9 +91,9 @@ public class ConfigInstance {
                 try {
                     valueToSave = this.gson.fromJson(this.gson.toJson(v), new TypeToken<Map<String, Object>>(){}.getType());
                 } catch (JsonSyntaxException e) {
-                    Bukkit.getLogger().warning("Gson JSON syntax error for key '" + k + "': " + e.getMessage());
+                    this.plugin.getLog().warn(e, "gson json syntax error for key {}", k);
                 } catch (Exception e) {
-                    Bukkit.getLogger().warning("Unexpected error converting key '" + k + "': " + e.getMessage());
+                    this.plugin.getLog().warn(e, "unexpected error converting key {}", k);
                 }
             }
             configuration.set(topKeyPath + "." + k, valueToSave);
@@ -129,7 +123,7 @@ public class ConfigInstance {
                 try {
                     this.plugin.saveResource(replace, true);
                 } catch (Exception e) {
-                    Bukkit.getLogger().severe("can not find file " + pathEnum.getNickName() + ", path: " + pathEnum.getPath());
+                    this.plugin.getLog().warn(e, "can not find file {}, path: {}", pathEnum.getNickName(), pathEnum.getPath());
                 }
             }
             this.setConfig(pathEnum.name(), YamlConfiguration.loadConfiguration(file));

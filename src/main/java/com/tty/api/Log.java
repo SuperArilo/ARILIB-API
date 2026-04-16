@@ -2,16 +2,13 @@ package com.tty.api;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.Bukkit;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-@SuppressWarnings("UnstableApiUsage")
 public class Log {
 
-    private final Logger logger = Bukkit.getLogger();
+    private final BaseJavaPlugin plugin;
 
     private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
@@ -42,54 +39,56 @@ public class Log {
     @Setter
     private volatile Level minLevel = Level.INFO;
 
-    Log() { }
+    Log(BaseJavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
-    Log(boolean debug) {
+    Log(BaseJavaPlugin plugin, boolean debug) {
+        this.plugin = plugin;
         this.debug = debug;
     }
 
     public void info(String msg, Object... args) {
-        log(Level.INFO, msg, args);
+        this.log(Level.INFO, msg, args);
     }
 
     public void warn(String msg, Object... args) {
-        log(Level.WARNING, msg, args);
+        this.log(Level.WARNING, msg, args);
     }
 
     public void warn(Throwable throwable) {
-        log(Level.WARNING, throwable, null);
+        this.log(Level.WARNING, throwable, null);
     }
 
     public void warn(Throwable throwable, String msg, Object... args) {
-        log(Level.WARNING, throwable, msg, args);
+        this.log(Level.WARNING, throwable, msg, args);
     }
 
     public void error(String msg, Object... args) {
-        log(Level.SEVERE, msg, args);
+        this.log(Level.SEVERE, msg, args);
     }
 
     public void error(Throwable throwable) {
-        log(Level.SEVERE, throwable, null);
+        this.log(Level.SEVERE, throwable, null);
     }
 
     public void error(Throwable throwable, String msg, Object... args) {
-        log(Level.SEVERE, throwable, msg, args);
+        this.log(Level.SEVERE, throwable, msg, args);
     }
 
     public void debug(String msg, Object... args) {
         if (!this.debug) return;
-        log(Level.INFO, PREFIX_DEBUG + this.wrapCaller(msg), args);
+        this.log(Level.INFO, PREFIX_DEBUG + this.wrapCaller(msg), args);
     }
 
     public void debug(Throwable throwable, String msg, Object... args) {
         if (!this.debug) return;
-        log(Level.INFO, throwable, PREFIX_DEBUG + this.wrapCaller(msg), args);
+        this.log(Level.INFO, throwable, PREFIX_DEBUG + this.wrapCaller(msg), args);
     }
 
     private void log(Level level, String msg, Object... args) {
         if (this.shouldNotLog(level)) return;
-
-        this.logger.log(level, this.formatMessage(msg, args));
+        this.plugin.getLogger().log(level, this.formatMessage(msg, args));
     }
 
     private void log(Level level, Throwable throwable, String msg, Object... args) {
@@ -99,11 +98,11 @@ public class Log {
                 ? this.wrapCaller(throwable.getMessage())
                 : this.formatMessage(msg, args);
 
-        this.logger.log(level, message, throwable);
+        this.plugin.getLogger().log(level, message, throwable);
     }
 
     private boolean shouldNotLog(Level level) {
-        return level.intValue() < minLevel.intValue();
+        return level.intValue() < this.minLevel.intValue();
     }
 
     private String formatMessage(String msg, Object... args) {
@@ -209,14 +208,6 @@ public class Log {
             return text;
         }
         return this.randomColor() + text + ANSI_RESET;
-    }
-
-    public static Log create() {
-        return new Log();
-    }
-
-    public static Log create(boolean debug) {
-        return  new Log(debug);
     }
 
 }

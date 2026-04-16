@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.tty.api.BaseJavaPlugin;
 import com.tty.api.utils.ComponentUtils;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.gui.BaseDataMenu;
@@ -36,7 +37,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     private volatile CompletableFuture<PageResult<T>> currentRequest;
 
-    public BaseDataItemConfigInventory(JavaPlugin plugin, Player player) {
+    public BaseDataItemConfigInventory(BaseJavaPlugin plugin, Player player) {
         super(plugin, player);
     }
 

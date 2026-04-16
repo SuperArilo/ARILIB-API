@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.tty.api.BaseJavaPlugin;
 import com.tty.api.utils.ComponentUtils;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
@@ -15,7 +16,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -26,11 +26,10 @@ public abstract class BaseConfigInventory extends BaseInventory {
     @Getter
     private BaseMenu baseMenu;
     protected Player player;
-    private JavaPlugin plugin;
 
-    public BaseConfigInventory(JavaPlugin plugin, Player player) {
+    public BaseConfigInventory(BaseJavaPlugin plugin, Player player) {
+        super(plugin);
         this.baseMenu = this.config();
-        this.plugin = plugin;
         this.player = player;
     }
 
@@ -63,7 +62,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mask = this.config().getMask();
         }
         List<TextComponent> collect = mask.getLore().stream().map(ComponentUtils::text).toList();
-        NamespacedKey key = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_MASK);
+        NamespacedKey key = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_MASK);
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
@@ -82,7 +81,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         if (functionItems == null || functionItems.isEmpty()) {
             functionItems = this.config().getFunctionItems();
         }
-        NamespacedKey key = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
+        NamespacedKey key = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
         functionItems.forEach((k, v) -> {
             FunctionType functionType = v.getType();
             if (functionType == null) {
@@ -124,18 +123,17 @@ public abstract class BaseConfigInventory extends BaseInventory {
      * @param <T> 类型 T
      */
     protected <T> void setNBT(@NotNull ItemMeta itemMeta, String key, PersistentDataType<T, T> type, T value) {
-        if (this.plugin == null) {
+        if (this.getBaseJavaPlugin() == null) {
             this.getLog().debug("plugin in inventory is null, cannot set NBT for key: {}", key);
             return;
         }
-        itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.plugin, key), type, value);
+        itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.getBaseJavaPlugin(), key), type, value);
     }
 
     @Override
     public void clean() {
         this.baseMenu = null;
         this.player = null;
-        this.plugin = null;
     }
 
 }

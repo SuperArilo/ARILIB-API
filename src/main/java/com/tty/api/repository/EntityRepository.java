@@ -5,14 +5,13 @@ import com.baomidou.mybatisplus.core.metadata.TableInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.tty.api.Log;
+import com.tty.api.BaseJavaPlugin;
 import com.tty.api.annotations.cache.CacheKey;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
 import com.tty.api.utils.BaseDataManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,8 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class EntityRepository<T> {
 
-    private static final Log log = Log.create();
-
+    private final BaseJavaPlugin plugin;
     protected final BaseDataManager<T> manager;
 
     // 实体缓存，键为分区+查询条件，值为单个实体
@@ -53,7 +51,8 @@ public abstract class EntityRepository<T> {
     // 缓存实体类中被 @CacheKey 标记的字段列表
     private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
 
-    public EntityRepository(BaseDataManager<T> manager) {
+    public EntityRepository(BaseJavaPlugin plugin, BaseDataManager<T> manager) {
+        this.plugin = plugin;
         this.manager = manager;
         this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");
     }
@@ -375,7 +374,7 @@ public abstract class EntityRepository<T> {
         Object[] merged = new Object[args.length + 1];
         merged[0] = getClass().getSimpleName();
         System.arraycopy(args, 0, merged, 1, args.length);
-        log.debug("[{}] " + format, merged);
+        this.plugin.getLog().debug("[{}] " + format, merged);
     }
 
     /**
@@ -451,14 +450,6 @@ public abstract class EntityRepository<T> {
      */
     public boolean isAsync() {
         return this.manager.isAsync();
-    }
-
-    /**
-     * 开启/关闭调试日志
-     * @param status true 开启，false 关闭
-     */
-    public void debug(boolean status) {
-        log.setDebug(status);
     }
 
     /**
