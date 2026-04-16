@@ -31,6 +31,7 @@ public class FunctionHandlerRegistry {
             try {
                 this.handlers.put(ann.value(), MethodHandles.lookup().unreflect(method).bindTo(handlerInstance));
             } catch (IllegalAccessException e) {
+                e.printStackTrace();
                 Bukkit.getLogger().log(Level.SEVERE, "Failed to register handler for " + ann.value(), e);
             }
         }
