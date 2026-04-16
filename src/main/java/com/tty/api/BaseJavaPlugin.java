@@ -1,9 +1,17 @@
 package com.tty.api;
 
+import com.tty.api.dto.TempRegisterService;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
+import org.bukkit.Bukkit;
+import org.bukkit.event.Listener;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
+import java.util.function.Consumer;
 
 public abstract class BaseJavaPlugin extends JavaPlugin {
 
@@ -28,6 +36,25 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
             log.error("server version is too low. This plugin requires at least 1.21.3. Disabling plugin...");
             this.getServer().getPluginManager().disablePlugin(this);
         }
+        for (Listener event : this.registerEvents()) {
+            Bukkit.getPluginManager().registerEvents(event, this);
+        }
+
+        for (TempRegisterService<?> temp : this.loadOtherPlugin()) {
+            Consumer<Object> consumer = (Consumer<Object>) temp.getConsumer();
+            if (Bukkit.getPluginManager().isPluginEnabled(temp.getPluginName())) {
+                RegisteredServiceProvider<?> registration = Bukkit.getServer().getServicesManager().getRegistration(temp.getTClass());
+                if (registration != null) {
+                    consumer.accept(registration.getProvider());
+                } else {
+                    this.log.warn("failed to load class {}.", temp.getPluginName());
+                    consumer.accept(null);
+                }
+            } else {
+                this.log.warn("failed to load class {}. because {} not found.", temp.getPluginName());
+                consumer.accept(null);
+            }
+        }
     }
 
     @Override
@@ -37,7 +64,19 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
         }
     }
 
-    protected abstract FilePathEnum[] fileList();
+    protected abstract List<TempRegisterService<?>> loadOtherPlugin();
+
+    /**
+     * 批量注册事件
+     * @return 事件集合
+     */
+    @NotNull protected abstract List<Listener> registerEvents();
+
+    /**
+     * 自定义的配置文件列表
+     * @return 文件列表枚举
+     */
+    @NotNull protected abstract FilePathEnum[] fileList();
 
     public void doReloadAllFiles() {
         this.saveDefaultConfig();
