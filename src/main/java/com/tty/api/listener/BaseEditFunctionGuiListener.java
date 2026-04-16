@@ -11,10 +11,9 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public abstract class BaseEditFunctionGuiListener<T extends InventoryHolder> extends BaseGuiListener<T> {
+public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
 
     protected BaseEditFunctionGuiListener(JavaPlugin plugin, FunctionHandlerRegistry registry, GuiKeyEnum guiType) {
         super(plugin, registry, guiType);

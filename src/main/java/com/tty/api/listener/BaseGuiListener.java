@@ -4,7 +4,7 @@ import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
-import com.tty.api.gui.BaseConfigInventory;
+import com.tty.api.gui.BaseInventory;
 import com.tty.api.utils.GuiNBTKeys;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 
-public abstract class BaseGuiListener<T extends InventoryHolder> implements Listener {
+public abstract class BaseGuiListener implements Listener {
 
     private final FunctionHandlerRegistry registry;
     private final JavaPlugin plugin;
@@ -47,8 +47,8 @@ public abstract class BaseGuiListener<T extends InventoryHolder> implements List
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
 
-        T topHolder = (T) topInventory.getHolder();
-        T clickedHolder = (T) clickedInventory.getHolder();
+        InventoryHolder topHolder = topInventory.getHolder();
+        InventoryHolder clickedHolder = clickedInventory.getHolder();
 
         if (topHolder != null && event.isShiftClick()) {
             if (clickedInventory.equals(topInventory) || clickedInventory.equals(bottomInventory)) {
@@ -87,7 +87,7 @@ public abstract class BaseGuiListener<T extends InventoryHolder> implements List
         InventoryView view = event.getView();
         Inventory topInventory = view.getTopInventory();
 
-        if (!(topInventory.getHolder() instanceof BaseConfigInventory holder)) return;
+        if (!(topInventory.getHolder() instanceof BaseInventory holder)) return;
 
         GuiMeta annotation = holder.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
