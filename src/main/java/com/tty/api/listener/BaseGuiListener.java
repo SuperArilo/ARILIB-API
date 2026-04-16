@@ -1,24 +1,42 @@
 package com.tty.api.listener;
 
+import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseConfigInventory;
+import com.tty.api.utils.GuiNBTKeys;
+import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 
-public abstract class BaseGuiListener implements Listener {
+public abstract class BaseGuiListener<T extends InventoryHolder> implements Listener {
+
+    private final FunctionHandlerRegistry registry;
+    private final JavaPlugin plugin;
+
+    private final NamespacedKey clickFunctionIcon;
 
     protected final GuiKeyEnum guiType;
 
-    protected BaseGuiListener(GuiKeyEnum guiType) {
+    protected BaseGuiListener(@NotNull JavaPlugin plugin, @Nullable  FunctionHandlerRegistry registry, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
+        this.registry = registry;
+        this.plugin = plugin;
+        this.clickFunctionIcon = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @EventHandler
@@ -29,8 +47,8 @@ public abstract class BaseGuiListener implements Listener {
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
 
-        BaseConfigInventory topHolder = topInventory.getHolder() instanceof BaseConfigInventory t ? t : null;
-        BaseConfigInventory clickedHolder = clickedInventory.getHolder() instanceof BaseConfigInventory c ? c : null;
+        T topHolder = (T) topInventory.getHolder();
+        T clickedHolder = (T) clickedInventory.getHolder();
 
         if (topHolder != null && event.isShiftClick()) {
             if (clickedInventory.equals(topInventory) || clickedInventory.equals(bottomInventory)) {
@@ -52,7 +70,15 @@ public abstract class BaseGuiListener implements Listener {
             event.setCancelled(true);
             if (event.getCurrentItem() == null) return;
             if (event.isShiftClick()) return;
+
+            ItemStack currentItem = event.getCurrentItem();
+
+            FunctionType type = this.ItemNBT_TypeCheck(currentItem.getItemMeta().getPersistentDataContainer().get(this.clickFunctionIcon, PersistentDataType.STRING));
+            if(type == null) return;
             this.passClick(event);
+            if (!(event.getWhoClicked() instanceof Player player)) return;
+            if (this.registry == null) return;
+            this.registry.dispatch(type, event, topHolder, player);
         }
     }
 

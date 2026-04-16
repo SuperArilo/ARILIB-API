@@ -1,5 +1,6 @@
 package com.tty.api.listener;
 
+import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
 import com.tty.api.utils.FormatUtils;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
@@ -10,11 +11,13 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
+public abstract class BaseEditFunctionGuiListener<T extends InventoryHolder> extends BaseGuiListener<T> {
 
-    protected BaseEditFunctionGuiListener(GuiKeyEnum guiType) {
-        super(guiType);
+    protected BaseEditFunctionGuiListener(JavaPlugin plugin, FunctionHandlerRegistry registry, GuiKeyEnum guiType) {
+        super(plugin, registry, guiType);
     }
 
     @Override
