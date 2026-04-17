@@ -28,6 +28,7 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
     public void onLoad() {
         this.log = new Log(this);
         this.doReloadAllFiles();
+        this.loading();
     }
 
     @Override
@@ -39,7 +40,6 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
         for (Listener event : this.registerEvents()) {
             Bukkit.getPluginManager().registerEvents(event, this);
         }
-
         for (TempRegisterService<?> temp : this.loadOtherPlugin()) {
             Consumer<Object> consumer = (Consumer<Object>) temp.getConsumer();
             if (Bukkit.getPluginManager().isPluginEnabled(temp.getPluginName())) {
@@ -55,6 +55,7 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
                 consumer.accept(null);
             }
         }
+        this.enabling();
     }
 
     @Override
@@ -62,8 +63,28 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
         if (this.configInstance != null) {
             this.configInstance.clearConfigs();
         }
+        this.disabling();
     }
 
+    /**
+     * 插件 load 阶段
+     */
+    protected abstract void loading();
+
+    /**
+     * 插件 enable 阶段
+     */
+    protected abstract void enabling();
+
+    /**
+     * 插件 disable 阶段
+     */
+    protected abstract void disabling();
+
+    /**
+     * 批量加载其它插件
+     * @return 插件列表类
+     */
     protected abstract List<TempRegisterService<?>> loadOtherPlugin();
 
     /**
