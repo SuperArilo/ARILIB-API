@@ -24,7 +24,7 @@ public class ConfigInstance {
     private final BaseJavaPlugin plugin;
     private final FilePathEnum[] pathList;
 
-    private final Map<String, YamlConfiguration> CONFIGS = new ConcurrentHashMap<>();
+    private final Map<String, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
     public ConfigInstance(BaseJavaPlugin plugin, FilePathEnum[] pathList) {
@@ -73,7 +73,7 @@ public class ConfigInstance {
     }
 
     public YamlConfiguration getObject(String fileName) {
-        return CONFIGS.get(fileName);
+        return this.configs.get(fileName);
     }
 
     private boolean checkPath(String path) {
@@ -104,11 +104,11 @@ public class ConfigInstance {
     }
 
     public void setConfig(String name, YamlConfiguration instance) {
-        CONFIGS.put(name, instance);
+        this.configs.put(name, instance);
     }
 
     public void clearConfigs() {
-        CONFIGS.clear();
+        this.configs.clear();
     }
 
     public void reload() {
