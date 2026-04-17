@@ -1,10 +1,12 @@
 package com.tty.api.annotations.function_type;
 
 import com.tty.api.enumType.FunctionType;
+import com.tty.api.gui.BaseInventory;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.InventoryHolder;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -37,11 +39,11 @@ public class FunctionHandlerRegistry {
         }
     }
 
-    public void dispatch(FunctionType type, InventoryClickEvent event, Object holder, Player player) {
+    public void dispatch(FunctionType type, InventoryClickEvent event, InventoryHolder holder, Player player) {
         MethodHandle handle = this.handlers.get(type);
         if (handle != null) {
             try {
-                handle.invoke(type, event, holder, player);
+                if (holder instanceof BaseInventory) handle.invoke(type, event, holder, player);
             } catch (Throwable e) {
                 e.printStackTrace();
                 Bukkit.getLogger().severe("Error dispatching FunctionType: " + type);

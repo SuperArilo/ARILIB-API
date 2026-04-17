@@ -1,5 +1,6 @@
 package com.tty.api.listener;
 
+import com.tty.api.BaseJavaPlugin;
 import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
@@ -17,25 +18,21 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 
 public abstract class BaseGuiListener implements Listener {
 
     private final FunctionHandlerRegistry registry;
-    private final JavaPlugin plugin;
-
     private final NamespacedKey clickFunctionIcon;
-
+    private final BaseJavaPlugin plugin;
     protected final GuiKeyEnum guiType;
 
-    protected BaseGuiListener(@NotNull JavaPlugin plugin, @Nullable  FunctionHandlerRegistry registry, @NotNull GuiKeyEnum guiType) {
+    protected BaseGuiListener(@NotNull BaseJavaPlugin plugin, @NotNull FunctionHandlerRegistry registry, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
-        this.registry = registry;
         this.plugin = plugin;
+        this.registry = registry;
         this.clickFunctionIcon = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
@@ -43,49 +40,53 @@ public abstract class BaseGuiListener implements Listener {
     public void onClick(InventoryClickEvent event) {
         InventoryView view = event.getView();
         Inventory topInventory = view.getTopInventory();
-        Inventory bottomInventory = view.getBottomInventory();
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
 
         InventoryHolder topHolder = topInventory.getHolder();
         InventoryHolder clickedHolder = clickedInventory.getHolder();
 
-        if (topHolder != null && event.isShiftClick()) {
-            if (clickedInventory.equals(topInventory) || clickedInventory.equals(bottomInventory)) {
-                event.setCancelled(true);
-                return;
-            }
-        }
+        if (topHolder == null || clickedHolder == null) return;
 
-        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR && clickedInventory.equals(topInventory) && topHolder != null) {
+        boolean isTopBaseInventory = topHolder instanceof BaseInventory;
+
+        if (event.isShiftClick() && !clickedInventory.equals(topInventory) && isTopBaseInventory) {
             event.setCancelled(true);
             return;
         }
 
-        if (clickedHolder == null) return;
+        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR
+                && clickedInventory.equals(topInventory)
+                && isTopBaseInventory) {
+            event.setCancelled(true);
+            return;
+        }
+
         GuiMeta annotation = clickedHolder.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
         boolean isCustomGui = annotation.type().equals(this.guiType.getType());
         if (clickedInventory.equals(topInventory) && isCustomGui) {
             event.setCancelled(true);
-            if (event.getCurrentItem() == null) return;
-            if (event.isShiftClick()) return;
-
             ItemStack currentItem = event.getCurrentItem();
+            if (currentItem == null || event.isShiftClick()) return;
 
-            FunctionType type = this.ItemNBT_TypeCheck(currentItem.getItemMeta().getPersistentDataContainer().get(this.clickFunctionIcon, PersistentDataType.STRING));
-            if(type == null) return;
+            ItemMeta meta = currentItem.getItemMeta();
+            if (meta == null) return;
+
+            FunctionType type = this.ItemNBT_TypeCheck(meta.getPersistentDataContainer().get(this.clickFunctionIcon, PersistentDataType.STRING));
+            if (type == null) return;
+
             this.passClick(event);
-            if (!(event.getWhoClicked() instanceof Player player)) return;
-            if (this.registry == null) return;
-            this.registry.dispatch(type, event, topHolder, player);
+
+            if (event.getWhoClicked() instanceof Player player) {
+                this.registry.dispatch(type, event, topHolder, player);
+            }
         }
     }
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        InventoryView view = event.getView();
-        Inventory topInventory = view.getTopInventory();
+        Inventory topInventory = event.getView().getTopInventory();
 
         if (!(topInventory.getHolder() instanceof BaseInventory holder)) return;
 
@@ -115,8 +116,12 @@ public abstract class BaseGuiListener implements Listener {
      * @return 返回指定的 FunctionType
      */
     protected FunctionType ItemNBT_TypeCheck(String rawType) throws IllegalArgumentException {
-        if(rawType == null) return null;
-        return FunctionType.valueOf(rawType.toUpperCase());
+        if (rawType == null) return null;
+        try {
+            return FunctionType.valueOf(rawType.toUpperCase());
+        } catch (Exception e) {
+            this.plugin.getLog().warn(e, "Invalid FunctionType found in GUI item NBT: {}", rawType);
+        }
+        return null;
     }
-
 }
