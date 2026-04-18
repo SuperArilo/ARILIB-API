@@ -11,6 +11,8 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseInventory implements InventoryHolder {
 
+    private final Object lock = new Object();
+
     private BaseJavaPlugin plugin;
     private Inventory inventory;
 
@@ -21,12 +23,15 @@ public abstract class BaseInventory implements InventoryHolder {
     @Override
     public @NotNull Inventory getInventory() {
         if (this.inventory != null) return this.inventory;
-        if (this.size() < 9) {
-            throw new IllegalArgumentException("inventory size must be >= 9");
+        synchronized (this.lock) {
+            if (this.inventory != null) return this.inventory;
+            if (this.size() < 9) {
+                throw new IllegalArgumentException("inventory size must be >= 9");
+            }
+            this.inventory = Bukkit.createInventory(this, this.size(), this.title());
+            this.afterCreatedInventory(this.inventory);
+            return this.inventory;
         }
-        this.inventory = Bukkit.createInventory(this, this.size(), this.title());
-        this.afterCreatedInventory(this.inventory);
-        return this.inventory;
     }
 
     /**
@@ -65,10 +70,12 @@ public abstract class BaseInventory implements InventoryHolder {
     }
 
     public void cleanup() {
-        if (this.inventory != null) {
-            this.inventory.clear();
+        synchronized (this.lock) {
+            if (this.inventory != null) {
+                this.inventory.clear();
+            }
+            this.inventory = null;
         }
-        this.inventory = null;
         this.plugin = null;
         this.clean();
     }

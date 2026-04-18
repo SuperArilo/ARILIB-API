@@ -1,11 +1,11 @@
 package com.tty.api.gui;
 
 import com.tty.api.BaseJavaPlugin;
-import com.tty.api.utils.ComponentUtils;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
 import com.tty.api.enumType.FunctionType;
+import com.tty.api.utils.ComponentUtils;
 import com.tty.api.utils.GuiNBTKeys;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public abstract class BaseConfigInventory extends BaseInventory {
 
@@ -28,10 +30,17 @@ public abstract class BaseConfigInventory extends BaseInventory {
     private BaseMenu baseMenu;
     protected Player player;
 
+    private final NamespacedKey GUI_RENDER_MASK_KEY;
+    private final NamespacedKey GUI_RENDER_FUNCTION_ICON_KEY;
+
+    private static final Pattern PLACEHOLDER_PATTERN = java.util.regex.Pattern.compile("<([^>]+)>");
+
     public BaseConfigInventory(BaseJavaPlugin plugin, Player player) {
         super(plugin);
         this.baseMenu = this.config();
         this.player = player;
+        this.GUI_RENDER_MASK_KEY = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_MASK);
+        this.GUI_RENDER_FUNCTION_ICON_KEY = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @Override
@@ -63,12 +72,12 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mask = this.config().getMask();
         }
         List<TextComponent> collect = mask.getLore().stream().map(ComponentUtils::text).toList();
-        NamespacedKey key = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_MASK);
+
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
             ItemMeta itemMeta = itemStack.getItemMeta();
             itemMeta.displayName(ComponentUtils.text(mask.getName()));
-            itemMeta.getPersistentDataContainer().set(key, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
+            itemMeta.getPersistentDataContainer().set(GUI_RENDER_MASK_KEY, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.getInventory().setItem(i, itemStack);
@@ -82,7 +91,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         if (functionItems == null || functionItems.isEmpty()) {
             functionItems = this.config().getFunctionItems();
         }
-        NamespacedKey key = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
+
         functionItems.forEach((k, v) -> {
             FunctionType functionType = v.getType();
             if (functionType == null) {
@@ -93,7 +102,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             ItemMeta mo = o.getItemMeta();
             mo.displayName(ComponentUtils.text(v.getName()));
             mo.lore(v.getLore().stream().map(ComponentUtils::text).toList());
-            mo.getPersistentDataContainer().set(key, PersistentDataType.STRING, functionType.name());
+            mo.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
             o.setItemMeta(mo);
             for (Integer integer : v.getSlot()) {
                 this.getInventory().setItem(integer, o);
@@ -103,16 +112,22 @@ public abstract class BaseConfigInventory extends BaseInventory {
     }
 
     protected String replaceKey(String content, Map<String, String> map) {
-        if (content == null || map == null || map.isEmpty()) {
-            return content;
-        }
-        String result = content;
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            if (entry.getKey() != null && entry.getValue() != null) {
-                result = result.replace("<" + entry.getKey() + ">" , entry.getValue());
+
+        if (content == null || map == null || map.isEmpty()) return content;
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(content);
+        StringBuilder sb = new StringBuilder();
+
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String replacement = map.get(key);
+            if (replacement != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            } else {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group(0)));
             }
         }
-        return result;
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     /**
