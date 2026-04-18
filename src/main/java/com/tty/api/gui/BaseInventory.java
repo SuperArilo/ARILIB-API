@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 public abstract class BaseInventory implements InventoryHolder {
 
     private BaseJavaPlugin plugin;
-    protected Inventory inventory;
+    private Inventory inventory;
 
     protected BaseInventory(BaseJavaPlugin plugin) {
         this.plugin = plugin;
@@ -25,16 +25,37 @@ public abstract class BaseInventory implements InventoryHolder {
             throw new IllegalArgumentException("inventory size must be >= 9");
         }
         this.inventory = Bukkit.createInventory(this, this.size(), this.title());
-        this.beforeCreate();
+        this.afterCreatedInventory(this.inventory);
         return this.inventory;
     }
 
+    /**
+     * 获取当前创建的 gui 的 slot 数量
+     * @return slot 数量
+     */
     protected abstract int size();
 
+    /**
+     * 获取当前创建的 gui 的标题
+     * @return 标题
+     */
     protected abstract @NotNull Component title();
 
-    protected abstract void beforeCreate();
+    /**
+     * 第一次创建 inventory 的时候会执行，如果已经创建后再调用则不会执行
+     * @param inventory 创建的 inventory
+     */
+    protected abstract void afterCreatedInventory(@NotNull Inventory inventory);
 
+    /**
+     * gui 清理钩子函数
+     */
+    protected abstract void clean();
+
+    /**
+     * 返回当前创建的 gui type 类型
+     * @return gui 类型，如果有
+     */
     public String getType() {
         GuiMeta annotation = this.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) {
@@ -42,8 +63,6 @@ public abstract class BaseInventory implements InventoryHolder {
         }
         return annotation.type();
     }
-
-    public abstract void clean();
 
     public void cleanup() {
         if (this.inventory != null) {

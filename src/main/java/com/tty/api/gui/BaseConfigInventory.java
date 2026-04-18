@@ -13,6 +13,7 @@ import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -34,7 +35,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     }
 
     @Override
-    protected void beforeCreate() {
+    protected void afterCreatedInventory(@NotNull Inventory inventory) {
         this.renderMasks();
         this.renderFunctionItems();
     }
@@ -70,7 +71,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             itemMeta.getPersistentDataContainer().set(key, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
-            this.inventory.setItem(i, itemStack);
+            this.getInventory().setItem(i, itemStack);
         }
         this.getLog().debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
@@ -95,7 +96,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mo.getPersistentDataContainer().set(key, PersistentDataType.STRING, functionType.name());
             o.setItemMeta(mo);
             for (Integer integer : v.getSlot()) {
-                this.inventory.setItem(integer, o);
+                this.getInventory().setItem(integer, o);
             }
         });
         this.getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
@@ -131,7 +132,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     }
 
     @Override
-    public void clean() {
+    protected void clean() {
         this.baseMenu = null;
         this.player = null;
     }

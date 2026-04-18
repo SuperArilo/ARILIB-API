@@ -9,6 +9,7 @@ import com.tty.api.enumType.FunctionType;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -41,8 +42,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected void beforeCreate() {
-        super.beforeCreate();
+    protected void afterCreatedInventory(@NotNull Inventory inventory) {
+        super.afterCreatedInventory(inventory);
         this.cachePageButtons();
         this.requestAndAccept(this::applyPageResult);
     }
@@ -63,7 +64,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     private ItemStack cloneFromInventory(List<Integer> slots) {
         if (slots == null || slots.isEmpty()) return null;
-        ItemStack item = this.inventory.getItem(slots.getFirst());
+        ItemStack item = this.getInventory().getItem(slots.getFirst());
         return item == null ? null : item.clone();
     }
 
@@ -94,7 +95,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         this.currentRequest = future;
         this.loading = true;
         future.thenAccept(result -> {
-            if (future.isCancelled() || this.inventory == null) {
+            if (future.isCancelled()) {
                 this.loading = false;
                 return;
             }
@@ -121,16 +122,16 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     private void renderDataItem() {
         long l = System.currentTimeMillis();
-        if (this.inventory == null) return;
+        this.getInventory();
         Map<Integer, ItemStack> renderItem = this.getRenderItem();
         if (renderItem == null) return;
 
         BaseDataMenu menu = (BaseDataMenu) config();
         for (Integer slot : menu.getDataItems().getSlot()) {
-            this.inventory.clear(slot);
+            this.getInventory().clear(slot);
             ItemStack item = renderItem.get(slot);
             if (item != null) {
-                this.inventory.setItem(slot, item);
+                this.getInventory().setItem(slot, item);
             }
         }
         this.getLog().debug("render data item time: {} ms, type: {}", (System.currentTimeMillis() -l), this.getType());
@@ -152,7 +153,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             this.setDisablePageFunction(slots);
         } else if (origin != null) {
             for (Integer slot : slots) {
-                this.inventory.setItem(slot, origin.clone());
+                this.getInventory().setItem(slot, origin.clone());
             }
         }
     }
@@ -184,7 +185,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    public void clean() {
+    protected void clean() {
         CompletableFuture<PageResult<T>> req = this.currentRequest;
         if (req != null && !req.isDone()) {
             req.cancel(true);
@@ -213,9 +214,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             itemMeta.displayName(ComponentUtils.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
             for (Integer slot : slots) {
-                if (this.inventory != null) {
-                    this.inventory.setItem(slot, itemStack);
-                }
+                this.getInventory();
+                this.getInventory().setItem(slot, itemStack);
             }
         } catch (IllegalArgumentException e) {
             this.getLog().error(e, "Invalid material for pageDisable: {}", pageDisable.getMaterial());
