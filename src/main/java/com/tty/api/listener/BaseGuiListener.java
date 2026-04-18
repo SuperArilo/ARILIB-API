@@ -1,7 +1,7 @@
 package com.tty.api.listener;
 
 import com.tty.api.BaseJavaPlugin;
-import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
+import com.tty.api.annotations.function_type.FunctionHandler;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
@@ -16,30 +16,28 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class BaseGuiListener implements Listener {
+public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
-    private final FunctionHandlerRegistry registry;
     private final NamespacedKey clickFunctionIcon;
     private final BaseJavaPlugin plugin;
     protected final GuiKeyEnum guiType;
 
-    protected BaseGuiListener(@NotNull BaseJavaPlugin plugin, @NotNull FunctionHandlerRegistry registry, @NotNull GuiKeyEnum guiType) {
+    private FunctionHandler<T> functionHandler;
+
+    protected BaseGuiListener(@NotNull BaseJavaPlugin plugin, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
         this.plugin = plugin;
-        this.registry = registry;
         this.clickFunctionIcon = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        InventoryView view = event.getView();
-        Inventory topInventory = view.getTopInventory();
+        Inventory topInventory = event.getView().getTopInventory();
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
 
@@ -79,7 +77,10 @@ public abstract class BaseGuiListener implements Listener {
             this.passClick(event);
 
             if (event.getWhoClicked() instanceof Player player) {
-                this.registry.dispatch(type, event, topHolder, player);
+                if (this.functionHandler == null) {
+                    this.functionHandler = this.registry();
+                }
+                this.functionHandler.dispatch(type, event, (T) topHolder, player);
             }
         }
     }
@@ -102,6 +103,8 @@ public abstract class BaseGuiListener implements Listener {
             }
         }
     }
+
+    @NotNull protected abstract FunctionHandler<T> registry();
 
     /**
      * 当点击通过 GUI 检查时调用，由子类实现具体点击处理逻辑

@@ -1,22 +1,21 @@
 package com.tty.api.listener;
 
 import com.tty.api.BaseJavaPlugin;
-import com.tty.api.annotations.function_type.FunctionHandlerRegistry;
-import com.tty.api.utils.FormatUtils;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
 import com.tty.api.state.EditGuiState;
+import com.tty.api.utils.FormatUtils;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.InventoryClickEvent;
 
-public abstract class BaseEditFunctionGuiListener extends BaseGuiListener {
+public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> extends BaseGuiListener<T> {
 
-    protected BaseEditFunctionGuiListener(BaseJavaPlugin plugin, FunctionHandlerRegistry registry, GuiKeyEnum guiType) {
-        super(plugin, registry, guiType);
+    protected BaseEditFunctionGuiListener(BaseJavaPlugin plugin, GuiKeyEnum guiType) {
+        super(plugin, guiType);
     }
 
     @Override
