@@ -1,8 +1,12 @@
 package com.tty.api.command;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.tty.api.annotations.command.CommandMeta;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.MessageComponentSerializer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -26,7 +30,7 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
                 .toArray(String[]::new);
     }
 
-    public abstract void execute(CommandSender sender, String[] args);
+    public abstract int execute(CommandSender sender, String[] args);
 
     public abstract List<SuperHandsomeCommand> thenCommands();
 
@@ -38,31 +42,26 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
 
     protected abstract boolean isDisabledInGame();
 
-    protected int preExecute(CommandContext<CommandSourceStack> ctx) {
+    protected int preExecute(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSender sender = ctx.getSource().getSender();
         if (this.isDisabledInGame()) {
-            sender.sendMessage(this.disableInGame());
-            return 0;
+            throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.disableInGame())).create();
         }
-
         CommandMeta meta = this.getClass().getAnnotation(CommandMeta.class);
         if (meta == null) {
             throw new IllegalStateException("missing @CommandMeta on " + getClass());
         }
         if (!meta.allowConsole() && !(sender instanceof Player)) {
-            sender.sendMessage(this.onlyUseInGame());
-            return 0;
+            throw new DynamicCommandExceptionType(name -> MessageComponentSerializer.message().serialize(this.onlyUseInGame())).create(sender.getName());
         }
 
         String[] args = getRealCommandArgs(ctx);
 
         if (args.length != meta.tokenLength()) {
-            sender.sendMessage(this.tokenNotAllow());
-            return 0;
+            throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.tokenNotAllow())).create();
         }
 
-        this.execute(sender, args);
-        return 1;
+        return this.execute(sender, args);
     }
 
     private static String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
