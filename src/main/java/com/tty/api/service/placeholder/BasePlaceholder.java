@@ -32,9 +32,7 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
     }
 
     protected CompletableFuture<Component> set(String value) {
-        CompletableFuture<Component> future = new CompletableFuture<>();
-        future.complete(ComponentUtils.text(value));
-        return future;
+        return CompletableFuture.completedFuture(ComponentUtils.text(value));
     }
 
     public CompletableFuture<Component> render(String path, Player player) {
