@@ -33,9 +33,10 @@ public abstract class BaseJavaPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        if(VersionUtil.isServerVersionLowerThan("1.21.3")) {
+        if(VersionUtil.isServerVersionLowerThan("1.21")) {
             log.error("server version is too low. This plugin requires at least 1.21.3. Disabling plugin...");
             this.getServer().getPluginManager().disablePlugin(this);
+            return;
         }
         for (Listener event : this.registerEvents()) {
             Bukkit.getPluginManager().registerEvents(event, this);
