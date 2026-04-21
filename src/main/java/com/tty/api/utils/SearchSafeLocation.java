@@ -4,6 +4,7 @@ import com.tty.api.BaseJavaPlugin;
 import com.tty.api.service.InteractService;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -29,13 +30,13 @@ public class SearchSafeLocation {
         }
     }
 
-    public CompletableFuture<Location> search(World world, int x, int z) {
+    public CompletableFuture<Location> search(@NotNull World world, int x, int z) {
 
         CompletableFuture<Location> result = new CompletableFuture<>();
 
         int count = this.searchCountInChunk;
 
-        world.getChunkAtAsync(x >> 4, z >> 4)
+        world.getChunkAtAsync(x >> 4, z >> 4, true)
                 .orTimeout(5, TimeUnit.SECONDS)
                 .thenAccept(chunk -> this.attemptSearch(world, chunk, count, result))
                 .exceptionally(i -> {
