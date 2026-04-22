@@ -1,6 +1,6 @@
 package com.tty.api.gui;
 
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
@@ -35,7 +35,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     private static final Pattern PLACEHOLDER_PATTERN = java.util.regex.Pattern.compile("<([^>]+)>");
 
-    public BaseConfigInventory(BaseJavaPlugin plugin, Player player) {
+    public BaseConfigInventory(AbstractJavaPlugin plugin, Player player) {
         super(plugin);
         this.baseMenu = this.config();
         this.player = player;

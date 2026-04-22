@@ -8,7 +8,7 @@ import java.util.logging.Level;
 
 public class Log {
 
-    private final BaseJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
 
     private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
@@ -39,11 +39,11 @@ public class Log {
     @Setter
     private volatile Level minLevel = Level.INFO;
 
-    Log(BaseJavaPlugin plugin) {
+    Log(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
     }
 
-    Log(BaseJavaPlugin plugin, boolean debug) {
+    Log(AbstractJavaPlugin plugin, boolean debug) {
         this.plugin = plugin;
         this.debug = debug;
     }

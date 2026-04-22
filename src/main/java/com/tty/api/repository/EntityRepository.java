@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.cache.CacheKey;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.QueryKey;
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class EntityRepository<T> {
 
-    private final BaseJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     protected final BaseDataManager<T> manager;
 
     // 实体缓存，键为分区+查询条件，值为单个实体
@@ -51,7 +51,7 @@ public abstract class EntityRepository<T> {
     // 缓存实体类中被 @CacheKey 标记的字段列表
     private static final Map<Class<?>, List<Field>> CACHE_KEY_FIELDS_CACHE = new ConcurrentHashMap<>();
 
-    public EntityRepository(BaseJavaPlugin plugin, BaseDataManager<T> manager) {
+    public EntityRepository(AbstractJavaPlugin plugin, BaseDataManager<T> manager) {
         this.plugin = plugin;
         this.manager = manager;
         this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");

@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.function.Consumer;
 
-public abstract class BaseJavaPlugin extends JavaPlugin {
+public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Getter
     private boolean debug = false;

@@ -1,6 +1,6 @@
 package com.tty.api.gui;
 
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import net.kyori.adventure.text.Component;
@@ -13,10 +13,10 @@ public abstract class BaseInventory implements InventoryHolder {
 
     private final Object lock = new Object();
 
-    private BaseJavaPlugin plugin;
+    private AbstractJavaPlugin plugin;
     private Inventory inventory;
 
-    protected BaseInventory(BaseJavaPlugin plugin) {
+    protected BaseInventory(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -84,7 +84,7 @@ public abstract class BaseInventory implements InventoryHolder {
         return this.plugin.getLog();
     }
 
-    protected BaseJavaPlugin getBaseJavaPlugin() {
+    protected AbstractJavaPlugin getBaseJavaPlugin() {
         return this.plugin;
     }
 

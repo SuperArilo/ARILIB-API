@@ -1,6 +1,6 @@
 package com.tty.api.listener;
 
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
@@ -14,7 +14,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 
 public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> extends BaseGuiListener<T> {
 
-    protected BaseEditFunctionGuiListener(BaseJavaPlugin plugin, GuiKeyEnum guiType) {
+    protected BaseEditFunctionGuiListener(AbstractJavaPlugin plugin, GuiKeyEnum guiType) {
         super(plugin, guiType);
     }
 

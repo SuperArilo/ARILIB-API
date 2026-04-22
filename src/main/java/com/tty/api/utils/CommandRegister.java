@@ -1,7 +1,7 @@
 package com.tty.api.utils;
 
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.command.SuperHandsomeCommand;
 import com.tty.api.dto.AliasItem;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class CommandRegister {
 
-    public static void register(BaseJavaPlugin plugin, String packagePath, Map<String, AliasItem> aliasItemMap) {
+    public static void register(AbstractJavaPlugin plugin, String packagePath, Map<String, AliasItem> aliasItemMap) {
         plugin.getLog().debug("----------register commands ----------");
         long start = System.currentTimeMillis();
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {

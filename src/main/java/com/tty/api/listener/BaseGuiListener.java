@@ -1,6 +1,6 @@
 package com.tty.api.listener;
 
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.function_type.FunctionHandler;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
@@ -24,12 +24,12 @@ import org.jetbrains.annotations.NotNull;
 public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
     private final NamespacedKey clickFunctionIcon;
-    private final BaseJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     protected final GuiKeyEnum guiType;
 
     private FunctionHandler<T> functionHandler;
 
-    protected BaseGuiListener(@NotNull BaseJavaPlugin plugin, @NotNull GuiKeyEnum guiType) {
+    protected BaseGuiListener(@NotNull AbstractJavaPlugin plugin, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
         this.plugin = plugin;
         this.clickFunctionIcon = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);

@@ -1,6 +1,6 @@
 package com.tty.api.utils;
 
-import com.tty.api.BaseJavaPlugin;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.service.InteractService;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -11,17 +11,17 @@ import java.util.concurrent.TimeUnit;
 
 public class SearchSafeLocation {
 
-    private final BaseJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     private final InteractService interactService;
 
     private int searchCountInChunk = 5;
 
-    public SearchSafeLocation(BaseJavaPlugin plugin, InteractService interactService) {
+    public SearchSafeLocation(AbstractJavaPlugin plugin, InteractService interactService) {
         this.plugin = plugin;
         this.interactService = interactService;
     }
 
-    public SearchSafeLocation(BaseJavaPlugin plugin, InteractService interactService, int searchCountInChunk) {
+    public SearchSafeLocation(AbstractJavaPlugin plugin, InteractService interactService, int searchCountInChunk) {
         this.interactService = interactService;
         this.searchCountInChunk = searchCountInChunk;
         this.plugin = plugin;

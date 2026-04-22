@@ -21,13 +21,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ConfigInstance {
 
-    private final BaseJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     private final FilePathEnum[] pathList;
 
     private final Map<String, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
-    public ConfigInstance(BaseJavaPlugin plugin, FilePathEnum[] pathList) {
+    public ConfigInstance(AbstractJavaPlugin plugin, FilePathEnum[] pathList) {
         this.plugin = plugin;
         this.pathList = pathList;
         this.reload();
