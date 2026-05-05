@@ -42,17 +42,17 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(event, this);
         }
         for (TempRegisterService<?> temp : this.loadOtherPlugin()) {
-            Consumer<Object> consumer = (Consumer<Object>) temp.getConsumer();
-            if (Bukkit.getPluginManager().isPluginEnabled(temp.getPluginName())) {
-                RegisteredServiceProvider<?> registration = Bukkit.getServer().getServicesManager().getRegistration(temp.getTClass());
+            Consumer<Object> consumer = (Consumer<Object>) temp.consumer();
+            if (Bukkit.getPluginManager().isPluginEnabled(temp.pluginName())) {
+                RegisteredServiceProvider<?> registration = Bukkit.getServer().getServicesManager().getRegistration(temp.tClass());
                 if (registration != null) {
                     consumer.accept(registration.getProvider());
                 } else {
-                    this.log.warn("failed to load class {}.", temp.getPluginName());
+                    this.log.warn("failed to load class {}.", temp.pluginName());
                     consumer.accept(null);
                 }
             } else {
-                this.log.warn("failed to load class {}. because {} not found.", temp.getPluginName());
+                this.log.warn("failed to load class {}. because {} not found.", temp.pluginName());
                 consumer.accept(null);
             }
         }
