@@ -6,11 +6,16 @@ import org.bukkit.entity.Player;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 @FunctionalInterface
 public interface PlaceholderResolve {
 
     CompletableFuture<Component> resolve(OfflinePlayer context);
+
+    static PlaceholderResolve ofWhenNull(Supplier<CompletableFuture<Component>> supplier) {
+        return context -> supplier.get();
+    }
 
     static PlaceholderResolve of(Function<Player, CompletableFuture<Component>> playerFunc, Function<OfflinePlayer, CompletableFuture<Component>> offlineFunc) {
         return context -> {
