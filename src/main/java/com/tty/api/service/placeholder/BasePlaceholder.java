@@ -5,6 +5,7 @@ import com.tty.api.utils.ComponentUtils;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.ConfigInstance;
 import com.tty.api.service.impl.PlaceholderEngineImpl;
+import lombok.Setter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -16,7 +17,8 @@ import java.util.concurrent.CompletableFuture;
 public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
 
     private final PlaceholderEngineImpl engine;
-    private final ConfigInstance instance;
+    @Setter
+    private ConfigInstance instance;
     private final E type;
 
     private final Type typeTokenList = new TypeToken<List<String>>() {}.getType();

@@ -42,7 +42,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             Bukkit.getPluginManager().registerEvents(event, this);
         }
         for (TempRegisterService<?> temp : this.loadOtherPlugin()) {
-            Consumer<Object> consumer = (Consumer<Object>) temp.consumer();
+            @SuppressWarnings("unchecked") Consumer<Object> consumer = (Consumer<Object>) temp.consumer();
             if (Bukkit.getPluginManager().isPluginEnabled(temp.pluginName())) {
                 RegisteredServiceProvider<?> registration = Bukkit.getServer().getServicesManager().getRegistration(temp.tClass());
                 if (registration != null) {
@@ -105,6 +105,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.reloadConfig();
         this.debug = this.getConfig().getBoolean("debug.enable", false);
         this.log.setDebug(this.debug);
+        if(this.configInstance != null) {
+            this.configInstance.clearConfigs();
+        }
         this.configInstance = new ConfigInstance(this, this.fileList());
     }
 
