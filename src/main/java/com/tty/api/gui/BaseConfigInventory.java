@@ -12,12 +12,14 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Player;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -28,30 +30,27 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     @Getter
     private BaseMenu baseMenu;
-    protected Player player;
+
+    @Getter
+    private OfflinePlayer offlinePlayer;
 
     private final NamespacedKey GUI_RENDER_MASK_KEY;
     private final NamespacedKey GUI_RENDER_FUNCTION_ICON_KEY;
 
-    private static final Pattern PLACEHOLDER_PATTERN = java.util.regex.Pattern.compile("<([^>]+)>");
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("<([^>]+)>");
 
-    public BaseConfigInventory(AbstractJavaPlugin plugin, Player player) {
+    public BaseConfigInventory(AbstractJavaPlugin plugin, OfflinePlayer offlinePlayer) {
         super(plugin);
         this.baseMenu = this.config();
-        this.player = player;
+        this.offlinePlayer = offlinePlayer;
         this.GUI_RENDER_MASK_KEY = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_MASK);
         this.GUI_RENDER_FUNCTION_ICON_KEY = new NamespacedKey(this.getBaseJavaPlugin(), GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @Override
-    protected void afterCreatedInventory(@NotNull Inventory inventory) {
-        this.renderMasks();
-        this.renderFunctionItems();
-    }
-
-    @Override
     protected @NotNull Component title() {
-        return ComponentUtils.text(this.config().getTitle(), this.player);
+        String title = this.config().getTitle();
+        return ComponentUtils.text(title, this.offlinePlayer);
     }
 
     @Override
@@ -61,16 +60,43 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     protected abstract @NotNull BaseMenu config();
 
-    protected abstract Mask renderCustomMasks();
+    @Override
+    protected void afterCreatedInventory(@NotNull Inventory inventory) {
+        Mask mask = this.config().getMask();
+        this.beforeRenderMasks(mask);
+        this.renderMasks(mask);
 
-    protected abstract Map<String, FunctionItems> renderCustomFunctionItems();
+        Map<String, FunctionItems> functionItems = this.config().getFunctionItems();
+        this.beforeRenderFunctionItems(functionItems);
+        this.renderFunctionItems(functionItems);
 
-    private void renderMasks() {
+        this.whenRenderComplete(inventory);
+    }
+
+    /**
+     * 在渲染 gui 遮罩前
+     * @param mask 遮罩
+     */
+    protected abstract void beforeRenderMasks(@Nullable Mask mask);
+
+    /**
+     * 在渲染 gui 功能icon前
+     * @param functionItems 功能 icon
+     */
+    protected abstract void beforeRenderFunctionItems(@Nullable Map<String, FunctionItems> functionItems);
+
+    /**
+     * 所有渲染完成后
+     * @param inventory inventory 对象
+     */
+    protected abstract void whenRenderComplete(@NotNull Inventory inventory);
+
+    private void renderMasks(@Nullable Mask mask) {
         long l = System.currentTimeMillis();
-        Mask mask = this.renderCustomMasks();
         if (mask == null) {
             mask = this.config().getMask();
         }
+        if (mask == null) return;
         List<TextComponent> collect = mask.getLore().stream().map(ComponentUtils::text).toList();
 
         for (Integer i : mask.getSlot()) {
@@ -85,29 +111,43 @@ public abstract class BaseConfigInventory extends BaseInventory {
         this.getLog().debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
-    protected void renderFunctionItems() {
+    private void renderFunctionItems(@Nullable Map<String, FunctionItems> functionItems) {
+        if (functionItems == null) return;
         long l = System.currentTimeMillis();
-        Map<String, FunctionItems> functionItems = this.renderCustomFunctionItems();
-        if (functionItems == null || functionItems.isEmpty()) {
-            functionItems = this.config().getFunctionItems();
-        }
+        this.beforeRenderFunctionItems(functionItems);
+        for (FunctionItems value : functionItems.values()) {
+            FunctionType functionType = value.getType();
+            if (functionType == null) return;
 
-        functionItems.forEach((k, v) -> {
-            FunctionType functionType = v.getType();
-            if (functionType == null) {
-                this.getLog().error("render function item on {} error.", k);
-                return;
+            //判断字段 item stack 是否存在
+            ItemStack prvateItemStack = value.getItemStack();
+            if (prvateItemStack == null) {
+                ItemStack o = ItemStack.of(Material.valueOf(value.getMaterial().toUpperCase()));
+                ItemMeta mo = o.getItemMeta();
+
+                String name = value.getName();
+                if (name != null) {
+                    mo.displayName(ComponentUtils.text(name));
+                } else if (mo instanceof SkullMeta skullMeta) {
+                    skullMeta.setPlayerProfile(this.offlinePlayer.getPlayerProfile());
+                    skullMeta.displayName(ComponentUtils.text(this.offlinePlayer.getName()));
+                }
+                mo.lore(value.getLore().stream().map(ComponentUtils::text).toList());
+                mo.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
+
+                o.setItemMeta(mo);
+                for (Integer integer : value.getSlot()) {
+                    this.getInventory().setItem(integer, o);
+                }
+            } else {
+                ItemMeta itemMeta = prvateItemStack.getItemMeta();
+                itemMeta.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
+                prvateItemStack.setItemMeta(itemMeta);
+                for (Integer integer : value.getSlot()) {
+                    this.getInventory().setItem(integer, prvateItemStack);
+                }
             }
-            ItemStack o = ItemStack.of(Material.valueOf(v.getMaterial().toUpperCase()));
-            ItemMeta mo = o.getItemMeta();
-            mo.displayName(ComponentUtils.text(v.getName()));
-            mo.lore(v.getLore().stream().map(ComponentUtils::text).toList());
-            mo.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
-            o.setItemMeta(mo);
-            for (Integer integer : v.getSlot()) {
-                this.getInventory().setItem(integer, o);
-            }
-        });
+        }
         this.getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
@@ -149,7 +189,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     @Override
     protected void clean() {
         this.baseMenu = null;
-        this.player = null;
+        this.offlinePlayer = null;
     }
 
 }

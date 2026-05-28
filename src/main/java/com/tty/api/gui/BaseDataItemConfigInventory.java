@@ -17,14 +17,12 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory {
 
     protected int pageNum = 1;
-    protected List<T> data;
     protected PageResult<T> lastPageResult;
 
     protected volatile boolean loading = false;
@@ -42,8 +40,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected void afterCreatedInventory(@NotNull Inventory inventory) {
-        super.afterCreatedInventory(inventory);
+    protected void whenRenderComplete(@NotNull Inventory inventory) {
         this.cachePageButtons();
         this.requestAndAccept(this::applyPageResult);
     }
@@ -83,7 +80,8 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     protected abstract CompletableFuture<PageResult<T>> requestData();
 
-    protected abstract Map<Integer, ItemStack> getRenderItem();
+    @NotNull
+    protected abstract List<ItemStack> beforeRenderDataItem(List<T> data);
 
     private void requestAndAccept(Consumer<PageResult<T>> consumer) {
         CompletableFuture<PageResult<T>> future = this.requestData();
@@ -115,23 +113,25 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     private void applyPageResult(PageResult<T> result) {
         this.lastPageResult = result;
-        this.data = result.records();
-        this.renderDataItem();
+        this.renderDataItem(this.beforeRenderDataItem(result.records()));
         this.updatePageButtons(result);
     }
 
-    private void renderDataItem() {
+    private void renderDataItem(List<ItemStack> list) {
         long l = System.currentTimeMillis();
         this.getInventory();
-        Map<Integer, ItemStack> renderItem = this.getRenderItem();
-        if (renderItem == null) return;
 
-        BaseDataMenu menu = (BaseDataMenu) config();
-        for (Integer slot : menu.getDataItems().getSlot()) {
+        List<Integer> slotList = ((BaseDataMenu) config()).getDataItems().getSlot();
+        if (list.size() > slotList.size()) throw new IllegalArgumentException("");
+
+        for (int i = 0; i < slotList.size(); i++) {
+            Integer slot = slotList.get(i);
             this.getInventory().clear(slot);
-            ItemStack item = renderItem.get(slot);
-            if (item != null) {
-                this.getInventory().setItem(slot, item);
+            if (i < list.size()) {
+                ItemStack item = list.get(i);
+                if (item != null) {
+                    this.getInventory().setItem(slot, item);
+                }
             }
         }
         this.getLog().debug("render data item time: {} ms, type: {}", (System.currentTimeMillis() -l), this.getType());
@@ -193,7 +193,6 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         this.currentRequest = null;
 
         super.clean();
-        this.data = null;
         this.lastPageResult = null;
         this.prevOrigin = null;
         this.nextOrigin = null;

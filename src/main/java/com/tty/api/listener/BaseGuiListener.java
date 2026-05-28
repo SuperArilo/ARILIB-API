@@ -64,7 +64,9 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         if (annotation == null) return;
         boolean isCustomGui = annotation.type().equals(this.guiType.getType());
         if (clickedInventory.equals(topInventory) && isCustomGui) {
-            event.setCancelled(true);
+            if (!this.cancelClick(event, (T) topHolder)) {
+                event.setCancelled(true);
+            }
             ItemStack currentItem = event.getCurrentItem();
             if (currentItem == null || event.isShiftClick()) return;
 
@@ -98,13 +100,26 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         int topSize = topInventory.getSize();
         for (int rawSlot : event.getRawSlots()) {
             if (rawSlot < topSize) {
-                event.setCancelled(true);
+                if (!this.cancelDrag(event, (T) holder)) {
+                    event.setCancelled(true);
+                }
                 break;
             }
         }
     }
 
     @NotNull protected abstract FunctionHandler<T> registry();
+
+    /**
+     * 自定义是否取消掉点击事件
+     *
+     * @param event  点击事件
+     * @param holder holder
+     * @return false 取消， true 放行
+     */
+    protected abstract boolean cancelClick(InventoryClickEvent event, T holder);
+
+    protected abstract boolean cancelDrag(InventoryDragEvent event, T holder);
 
     /**
      * 当点击通过 GUI 检查时调用，由子类实现具体点击处理逻辑
