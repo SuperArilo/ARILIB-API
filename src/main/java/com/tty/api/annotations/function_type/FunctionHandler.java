@@ -19,9 +19,7 @@ public class FunctionHandler<T extends BaseInventory> {
 
     public void dispatch(FunctionType type, InventoryClickEvent event, T holder, Player player) {
         TriConsumer<InventoryClickEvent, T, Player> consumer = this.map.get(type);
-        if (consumer == null) {
-            throw new NullPointerException("can not found function type " + type.getName() + "in function handler");
-        }
+        if (consumer == null) return;
         consumer.accept(event, holder, player);
     }
 
