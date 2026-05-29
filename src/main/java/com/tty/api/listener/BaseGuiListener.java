@@ -7,6 +7,7 @@ import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
 import com.tty.api.utils.GuiNBTKeys;
+import lombok.Getter;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,7 +24,8 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
-    private final NamespacedKey clickFunctionIcon;
+    @Getter
+    private final NamespacedKey FunctionIconNamespacedKey;
     private final AbstractJavaPlugin plugin;
     protected final GuiKeyEnum guiType;
 
@@ -32,7 +34,7 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
     protected BaseGuiListener(@NotNull AbstractJavaPlugin plugin, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
         this.plugin = plugin;
-        this.clickFunctionIcon = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
+        this.FunctionIconNamespacedKey = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @EventHandler
@@ -43,48 +45,55 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
 
         InventoryHolder topHolder = topInventory.getHolder();
         InventoryHolder clickedHolder = clickedInventory.getHolder();
-
         if (topHolder == null || clickedHolder == null) return;
 
-        boolean isTopBaseInventory = topHolder instanceof BaseInventory;
+        if (!(topHolder instanceof BaseInventory)) return;
 
-        if (event.isShiftClick() && !clickedInventory.equals(topInventory) && isTopBaseInventory) {
-            event.setCancelled(true);
-            return;
-        }
-
-        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR
-                && clickedInventory.equals(topInventory)
-                && isTopBaseInventory) {
-            event.setCancelled(true);
-            return;
-        }
-
-        GuiMeta annotation = clickedHolder.getClass().getAnnotation(GuiMeta.class);
+        GuiMeta annotation = topHolder.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
         boolean isCustomGui = annotation.type().equals(this.guiType.getType());
-        if (clickedInventory.equals(topInventory) && isCustomGui) {
-            if (!this.cancelClick(event, (T) topHolder)) {
+        if (!isCustomGui) return;
+
+        T holder = (T) topHolder;
+
+        if (event.isShiftClick() && !clickedInventory.equals(topInventory)) {
+            if (!this.whenShiftClick(event, holder)) {
                 event.setCancelled(true);
             }
-            ItemStack currentItem = event.getCurrentItem();
-            if (currentItem == null || event.isShiftClick()) return;
-
-            ItemMeta meta = currentItem.getItemMeta();
-            if (meta == null) return;
-
-            FunctionType type = this.ItemNBT_TypeCheck(meta.getPersistentDataContainer().get(this.clickFunctionIcon, PersistentDataType.STRING));
-            if (type == null) return;
-
-            this.passClick(event);
-
-            if (event.getWhoClicked() instanceof Player player) {
-                if (this.functionHandler == null) {
-                    this.functionHandler = this.registry();
-                }
-                this.functionHandler.dispatch(type, event, (T) topHolder, player);
-            }
+            return;
         }
+
+        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR && clickedInventory.equals(topInventory)) {
+            if (!this.whenDoubleClick(event, holder)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        if (!clickedInventory.equals(topInventory)) return;
+
+        if (!this.whenClick(event, holder)) {
+            event.setCancelled(true);
+        }
+
+        ItemStack currentItem = event.getCurrentItem();
+        if (currentItem == null || event.isShiftClick()) return;
+
+        ItemMeta meta = currentItem.getItemMeta();
+        if (meta == null) return;
+
+        FunctionType type = this.ItemNBT_TypeCheck(meta.getPersistentDataContainer().get(this.FunctionIconNamespacedKey, PersistentDataType.STRING));
+        if (type == null) return;
+
+        this.passClick(event);
+
+        if (event.getWhoClicked() instanceof Player player) {
+            if (this.functionHandler == null) {
+                this.functionHandler = this.registry();
+            }
+            this.functionHandler.dispatch(type, event, (T) topHolder, player);
+        }
+
     }
 
     @EventHandler
@@ -100,7 +109,7 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         int topSize = topInventory.getSize();
         for (int rawSlot : event.getRawSlots()) {
             if (rawSlot < topSize) {
-                if (!this.cancelDrag(event, (T) holder)) {
+                if (!this.whenDrag(event, (T) holder)) {
                     event.setCancelled(true);
                 }
                 break;
@@ -117,9 +126,13 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
      * @param holder holder
      * @return false 取消， true 放行
      */
-    protected abstract boolean cancelClick(InventoryClickEvent event, T holder);
+    protected abstract boolean whenClick(InventoryClickEvent event, T holder);
 
-    protected abstract boolean cancelDrag(InventoryDragEvent event, T holder);
+    protected abstract boolean whenDoubleClick(InventoryClickEvent event, T holder);
+
+    protected abstract boolean whenShiftClick(InventoryClickEvent event, T holder);
+
+    protected abstract boolean whenDrag(InventoryDragEvent event, T holder);
 
     /**
      * 当点击通过 GUI 检查时调用，由子类实现具体点击处理逻辑
