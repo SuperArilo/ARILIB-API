@@ -6,4 +6,6 @@ public final class GuiNBTKeys {
     public static final String GUI_RENDER_FUNCTION_ICON = "GUI_RENDER_FUNCTION_ICON";
     public static final String GUI_RENDER_DATA_ID = "GUI_RENDER_DATA_ID";
 
+    public static final String GUI_EQUIPMENT_TYPE = "GUI_EQUIPMENT_TYPE";
+
 }

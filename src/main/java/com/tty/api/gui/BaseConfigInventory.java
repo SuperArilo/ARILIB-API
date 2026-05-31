@@ -114,7 +114,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
     private void renderFunctionItems(@Nullable Map<String, FunctionItems> functionItems) {
         if (functionItems == null) return;
         long l = System.currentTimeMillis();
-        this.beforeRenderFunctionItems(functionItems);
         for (FunctionItems value : functionItems.values()) {
             FunctionType functionType = value.getType();
             if (functionType == null) return;
