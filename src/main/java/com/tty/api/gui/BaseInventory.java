@@ -84,7 +84,7 @@ public abstract class BaseInventory implements InventoryHolder {
         return this.plugin.getLog();
     }
 
-    protected AbstractJavaPlugin getBaseJavaPlugin() {
+    protected AbstractJavaPlugin getPlugin() {
         return this.plugin;
     }
 
