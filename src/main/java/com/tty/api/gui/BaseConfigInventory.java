@@ -24,7 +24,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,29 +63,26 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     @Override
     protected void afterCreatedInventory(@NotNull Inventory inventory) {
-
-        Executor syncExecutor = task -> this.getPlugin().getScheduler().runAsync(this.getPlugin(), t -> task.run());
-
-        this.beforeRenderMasks(this.baseMenu.getMask())
+        this.beforeRenderMasksAsync(this.baseMenu.getMask())
                 .thenCombineAsync(
-                        this.beforeRenderFunctionItems(this.baseMenu.getFunctionItems()),
+                        this.beforeRenderFunctionItemsAsync(this.baseMenu.getFunctionItems()),
                         (mask, items) -> {
                             this.renderMasks(mask);
                             this.renderFunctionItems(items);
                             return CompletableFuture.completedFuture(null);
                         },
-                        syncExecutor)
-                .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), syncExecutor)
+                        this.getExecutor())
+                .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getExecutor())
                 .exceptionally(throwable -> {
                     this.getLog().warn("GUI async render failed", throwable);
-                    syncExecutor.execute(() -> this.whenRenderComplete(inventory));
+                    this.getExecutor().execute(() -> this.whenRenderComplete(inventory));
                     return null;
                 });
     }
 
-    protected abstract @NotNull CompletableFuture<Mask> beforeRenderMasks(@Nullable Mask mask);
+    protected abstract @NotNull CompletableFuture<Mask> beforeRenderMasksAsync(@Nullable Mask mask);
 
-    protected abstract @NotNull CompletableFuture< Map<String, FunctionItems>> beforeRenderFunctionItems(@Nullable Map<String, FunctionItems> functionItems);
+    protected abstract @NotNull CompletableFuture< Map<String, FunctionItems>> beforeRenderFunctionItemsAsync(@Nullable Map<String, FunctionItems> functionItems);
 
     /**
      * 所有渲染完成后
@@ -189,7 +185,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     }
 
     @Override
-    protected void clean() {
+    protected void cleanAsync() {
         this.baseMenu = null;
         this.offlinePlayer = null;
     }

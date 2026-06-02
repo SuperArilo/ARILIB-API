@@ -3,11 +3,15 @@ package com.tty.api.gui;
 import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 public abstract class BaseInventory implements InventoryHolder {
 
@@ -16,8 +20,14 @@ public abstract class BaseInventory implements InventoryHolder {
     private AbstractJavaPlugin plugin;
     private Inventory inventory;
 
+    private volatile boolean isCleaning = false;
+
+    @Getter
+    private final Executor executor;
+
     protected BaseInventory(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
+        this.executor = task -> this.getPlugin().getScheduler().runAsync(this.getPlugin(), t -> task.run());
     }
 
     @Override
@@ -55,7 +65,7 @@ public abstract class BaseInventory implements InventoryHolder {
     /**
      * gui 清理钩子函数
      */
-    protected abstract void clean();
+    protected abstract void cleanAsync();
 
     /**
      * 返回当前创建的 gui type 类型
@@ -70,14 +80,30 @@ public abstract class BaseInventory implements InventoryHolder {
     }
 
     public void cleanup() {
-        synchronized (this.lock) {
-            if (this.inventory != null) {
-                this.inventory.clear();
+        if (this.isCleaning) return;
+        this.isCleaning = true;
+        CompletableFuture.supplyAsync(() -> {
+            this.cleanAsync();
+            return CompletableFuture.completedFuture(null);
+        }, this.executor).thenAccept(i -> {
+            synchronized (this.lock) {
+                if (this.inventory != null) {
+                    this.inventory.clear();
+                }
+                this.inventory = null;
+                this.plugin = null;
             }
-            this.inventory = null;
-        }
-        this.plugin = null;
-        this.clean();
+        }).exceptionally(e -> {
+            this.getLog().error(e, "clean gui {} error.", this.getType());
+            synchronized (this.lock) {
+                if (this.inventory != null) {
+                    this.inventory.clear();
+                }
+                this.inventory = null;
+                this.plugin = null;
+            }
+           return null;
+        });
     }
 
     protected Log getLog() {
