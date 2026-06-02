@@ -57,24 +57,18 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         T holder = (T) topHolder;
 
         if (event.isShiftClick() && !clickedInventory.equals(topInventory)) {
-            if (!this.whenShiftClick(event, holder)) {
-                event.setCancelled(true);
-            }
+            this.whenShiftClick(event, holder);
             return;
         }
 
         if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR && clickedInventory.equals(topInventory)) {
-            if (!this.whenDoubleClick(event, holder)) {
-                event.setCancelled(true);
-            }
+            this.whenDoubleClick(event, holder);
             return;
         }
 
         if (!clickedInventory.equals(topInventory)) return;
 
-        if (!this.whenClick(event, holder)) {
-            event.setCancelled(true);
-        }
+        this.whenClick(event, holder);
 
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null || event.isShiftClick()) return;
@@ -109,9 +103,7 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         int topSize = topInventory.getSize();
         for (int rawSlot : event.getRawSlots()) {
             if (rawSlot < topSize) {
-                if (!this.whenDrag(event, (T) holder)) {
-                    event.setCancelled(true);
-                }
+                this.whenDrag(event, (T) holder);
                 break;
             }
         }
@@ -124,15 +116,14 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
      *
      * @param event  点击事件
      * @param holder holder
-     * @return false 取消， true 放行
      */
-    protected abstract boolean whenClick(InventoryClickEvent event, T holder);
+    protected abstract void whenClick(InventoryClickEvent event, T holder);
 
-    protected abstract boolean whenDoubleClick(InventoryClickEvent event, T holder);
+    protected abstract void whenDoubleClick(InventoryClickEvent event, T holder);
 
-    protected abstract boolean whenShiftClick(InventoryClickEvent event, T holder);
+    protected abstract void whenShiftClick(InventoryClickEvent event, T holder);
 
-    protected abstract boolean whenDrag(InventoryDragEvent event, T holder);
+    protected abstract void whenDrag(InventoryDragEvent event, T holder);
 
     /**
      * 当点击通过 GUI 检查时调用，由子类实现具体点击处理逻辑
