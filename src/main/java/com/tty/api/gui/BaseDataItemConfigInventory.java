@@ -185,14 +185,12 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected void cleanAsync() {
+    public void close() {
         CompletableFuture<PageResult<T>> req = this.currentRequest;
         if (req != null && !req.isDone()) {
             req.cancel(true);
         }
         this.currentRequest = null;
-
-        super.cleanAsync();
         this.lastPageResult = null;
         this.prevOrigin = null;
         this.nextOrigin = null;

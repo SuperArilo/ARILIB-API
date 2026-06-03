@@ -30,10 +30,10 @@ import java.util.regex.Pattern;
 public abstract class BaseConfigInventory extends BaseInventory {
 
     @Getter
-    private BaseMenu baseMenu;
+    private final BaseMenu baseMenu;
 
     @Getter
-    private OfflinePlayer offlinePlayer;
+    private final OfflinePlayer offlinePlayer;
 
     private final NamespacedKey GUI_RENDER_MASK_KEY;
     private final NamespacedKey GUI_RENDER_FUNCTION_ICON_KEY;
@@ -182,12 +182,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
             return;
         }
         itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.getPlugin(), key), type, value);
-    }
-
-    @Override
-    protected void cleanAsync() {
-        this.baseMenu = null;
-        this.offlinePlayer = null;
     }
 
 }
