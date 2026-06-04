@@ -184,4 +184,18 @@ public abstract class BaseConfigInventory extends BaseInventory {
         itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.getPlugin(), key), type, value);
     }
 
+    protected void removeNBT(@NotNull ItemStack itemStack, NamespacedKey key) {
+        ItemMeta itemMeta = itemStack.getItemMeta();
+        if (itemMeta == null) return;
+        itemMeta.getPersistentDataContainer().remove(key);
+        itemStack.setItemMeta(itemMeta);
+    }
+
+    protected <T> void setNBT(@NotNull ItemStack itemStack, NamespacedKey key, PersistentDataType<T, T> type, T value) {
+        ItemMeta itemMeta = itemStack.getItemMeta();
+        if (itemMeta == null) return;
+        itemMeta.getPersistentDataContainer().set(key, type, value);
+        itemStack.setItemMeta(itemMeta);
+    }
+
 }
