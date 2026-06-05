@@ -50,19 +50,17 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         if (!(topHolder instanceof BaseInventory)) return;
 
         GuiMeta annotation = topHolder.getClass().getAnnotation(GuiMeta.class);
-        if (annotation == null) return;
-        boolean isCustomGui = annotation.type().equals(this.guiType.getType());
-        if (!isCustomGui) return;
+        if (annotation == null || !annotation.type().equals(this.guiType.getType())) return;
 
         T holder = (T) topHolder;
 
-        if (event.isShiftClick() && !clickedInventory.equals(topInventory)) {
-            this.whenShiftClick(event, holder);
+        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+            event.setCancelled(true);
             return;
         }
 
-        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR && clickedInventory.equals(topInventory)) {
-            this.whenDoubleClick(event, holder);
+        if (event.isShiftClick() && !clickedInventory.equals(topInventory)) {
+            this.whenShiftClick(event, holder);
             return;
         }
 
@@ -87,7 +85,6 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
             }
             this.functionHandler.dispatch(type, event, (T) topHolder, player);
         }
-
     }
 
     @EventHandler
@@ -118,8 +115,6 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
      * @param holder holder
      */
     protected abstract void whenClick(InventoryClickEvent event, T holder);
-
-    protected abstract void whenDoubleClick(InventoryClickEvent event, T holder);
 
     protected abstract void whenShiftClick(InventoryClickEvent event, T holder);
 
