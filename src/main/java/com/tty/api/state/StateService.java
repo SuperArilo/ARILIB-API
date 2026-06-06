@@ -1,10 +1,9 @@
 package com.tty.api.state;
 
-import com.tty.api.Scheduler;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.task.CancellableTask;
 import lombok.Getter;
 import org.bukkit.entity.Entity;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,8 +12,7 @@ import java.util.List;
 
 public abstract class StateService<T extends State> {
 
-    private final Scheduler scheduler;
-    private final JavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     /**
      * 每一次的执行周期 单位tick
      */
@@ -36,19 +34,18 @@ public abstract class StateService<T extends State> {
 
     protected final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
 
-    public StateService(long rate, long c, boolean isAsync, JavaPlugin javaPlugin, Scheduler scheduler) {
+    public StateService(long rate, long c, boolean isAsync, AbstractJavaPlugin javaPlugin) {
         this.rate = rate;
         this.c = c;
         this.isAsync = isAsync;
         this.plugin = javaPlugin;
-        this.scheduler = scheduler;
     }
 
-    private CancellableTask createTask(long rate, long c, boolean isAsync, JavaPlugin javaPlugin) {
+    private CancellableTask createTask(long rate, long c, boolean isAsync, AbstractJavaPlugin javaPlugin) {
         if (isAsync) {
-            return this.scheduler.runAsyncAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
+            return this.plugin.getScheduler().runAsyncAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
         } else {
-            return this.scheduler.runAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
+            return this.plugin.getScheduler().runAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
         }
     }
 
@@ -65,40 +62,42 @@ public abstract class StateService<T extends State> {
             return;
         }
 
-        Iterator<T> iterator = this.stateList.iterator();
-        while (iterator.hasNext()) {
-            T state = iterator.next();
+        synchronized (this.stateList) {
+            Iterator<T> iterator = this.stateList.iterator();
+            while (iterator.hasNext()) {
+                T state = iterator.next();
 
-            if (state.isOver()) {
-                iterator.remove();
-                this.onEarlyExit(state);
-                continue;
-            }
+                if (state.isOver()) {
+                    iterator.remove();
+                    this.onEarlyExit(state);
+                    continue;
+                }
 
-            if (state.isDone()) {
-                if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
-                iterator.remove();
-                this.onFinished(state);
-                continue;
-            }
+                if (state.isDone()) {
+                    if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+                    iterator.remove();
+                    this.onFinished(state);
+                    continue;
+                }
 
-            if (!state.isPending()) {
-                state.setPending(true);
-                try {
-                    state.increment();
-                    this.loopExecution(state);
-                    if (state.isOver()) {
-                        iterator.remove();
-                        this.onEarlyExit(state);
-                        continue;
+                if (!state.isPending()) {
+                    state.setPending(true);
+                    try {
+                        state.increment();
+                        this.loopExecution(state);
+                        if (state.isOver()) {
+                            iterator.remove();
+                            this.onEarlyExit(state);
+                            continue;
+                        }
+                        if (state.isDone()) {
+                            if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+                            iterator.remove();
+                            this.onFinished(state);
+                        }
+                    } finally {
+                        state.setPending(false);
                     }
-                    if (state.isDone()) {
-                        if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
-                        iterator.remove();
-                        this.onFinished(state);
-                    }
-                } finally {
-                    state.setPending(false);
                 }
             }
         }
