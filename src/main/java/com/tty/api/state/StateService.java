@@ -32,13 +32,19 @@ public abstract class StateService<T extends State> {
     private final Object lock = new Object();
     private volatile CancellableTask task;
 
-    protected final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
+    private final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
 
     public StateService(long rate, long c, boolean isAsync, AbstractJavaPlugin javaPlugin) {
         this.rate = rate;
         this.c = c;
         this.isAsync = isAsync;
         this.plugin = javaPlugin;
+    }
+
+    public List<T> getAllStates() {
+        synchronized (this.stateList) {
+            return new ArrayList<>(this.stateList);
+        }
     }
 
     private CancellableTask createTask(long rate, long c, boolean isAsync, AbstractJavaPlugin javaPlugin) {
@@ -104,13 +110,13 @@ public abstract class StateService<T extends State> {
     }
 
     public void abort() {
-        synchronized (this.lock) {
-            if (this.task != null) {
-                this.task.cancel();
-                this.task = null;
-            }
-        }
         synchronized (this.stateList) {
+            synchronized (this.lock) {
+                if (this.task != null) {
+                    this.task.cancel();
+                    this.task = null;
+                }
+            }
             for (T i : this.stateList) {
                 this.onServiceAbort(i);
             }
