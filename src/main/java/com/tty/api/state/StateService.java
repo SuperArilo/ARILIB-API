@@ -162,6 +162,12 @@ public abstract class StateService<T extends State> {
         }
     }
 
+    public boolean removeStateByOwner(Entity owner) {
+        synchronized (this.stateList) {
+            return this.stateList.removeIf(i -> i.getOwner().equals(owner));
+        }
+    }
+
     /**
      * 当前状态列表是否为空
      * @return 空 true
