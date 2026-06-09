@@ -16,7 +16,6 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -126,9 +125,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
                 String name = value.getName();
                 if (name != null) {
                     mo.displayName(ComponentUtils.text(name));
-                } else if (mo instanceof SkullMeta skullMeta) {
-                    skullMeta.setPlayerProfile(this.offlinePlayer.getPlayerProfile());
-                    skullMeta.displayName(ComponentUtils.text(this.offlinePlayer.getName()));
                 }
                 mo.lore(value.getLore().stream().map(ComponentUtils::text).toList());
                 mo.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
