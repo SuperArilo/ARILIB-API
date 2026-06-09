@@ -77,8 +77,6 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         FunctionType type = this.ItemNBT_TypeCheck(meta.getPersistentDataContainer().get(this.FunctionIconNamespacedKey, PersistentDataType.STRING));
         if (type == null) return;
 
-        this.passClick(event);
-
         if (event.getWhoClicked() instanceof Player player) {
             if (this.functionHandler == null) {
                 this.functionHandler = this.registry();
@@ -119,13 +117,6 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
     protected abstract void whenShiftClick(InventoryClickEvent event, T holder);
 
     protected abstract void whenDrag(InventoryDragEvent event, T holder);
-
-    /**
-     * 当点击通过 GUI 检查时调用，由子类实现具体点击处理逻辑
-     *
-     * @param event InventoryClickEvent
-     */
-    public abstract void passClick(InventoryClickEvent event);
 
     /**
      * 检查GUI里的 function icon 是否合法

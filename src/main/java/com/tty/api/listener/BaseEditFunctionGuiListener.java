@@ -18,9 +18,6 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> exten
         super(plugin, guiType);
     }
 
-    @Override
-    public void passClick(InventoryClickEvent event) {}
-
     @EventHandler
     public void onPlayerChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
