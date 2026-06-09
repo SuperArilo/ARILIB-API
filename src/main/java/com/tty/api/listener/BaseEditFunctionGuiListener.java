@@ -10,7 +10,6 @@ import com.tty.api.utils.FormatUtils;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.inventory.InventoryClickEvent;
 
 public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> extends BaseGuiListener<T> {
 
