@@ -10,13 +10,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public abstract class BaseInventory implements InventoryHolder {
 
     private final Object lock = new Object();
 
-    private final AbstractJavaPlugin plugin;
+    private AbstractJavaPlugin plugin;
     private volatile Inventory inventory;
 
     @Getter
@@ -62,7 +63,7 @@ public abstract class BaseInventory implements InventoryHolder {
     /**
      * gui 清理钩子函数
      */
-    public abstract void close();
+    protected abstract void onClose();
 
     /**
      * 返回当前创建的 gui type 类型
@@ -74,6 +75,22 @@ public abstract class BaseInventory implements InventoryHolder {
             throw new IllegalStateException("gui type is null");
         }
         return annotation.type();
+    }
+
+    public void close() {
+        CompletableFuture.supplyAsync(() -> {
+            this.onClose();
+            this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
+            return CompletableFuture.completedFuture(true);
+        }, this.executor).whenCompleteAsync((i, ex) -> {
+            if (ex != null) {
+                this.plugin.getLog().error(ex);
+            }
+            synchronized (this.lock) {
+                this.inventory = null;
+                this.plugin = null;
+            }
+        }, this.executor);
     }
 
     protected Log getLog() {

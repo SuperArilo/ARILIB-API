@@ -185,7 +185,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    public void close() {
+    protected void onClose() {
         CompletableFuture<PageResult<T>> req = this.currentRequest;
         if (req != null && !req.isDone()) {
             req.cancel(true);
