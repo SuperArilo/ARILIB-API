@@ -3,6 +3,7 @@ package com.tty.api.command;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.CommandNode;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.command.ArgumentCommand;
 import com.tty.api.annotations.command.CommandMeta;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -14,6 +15,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
+
+    protected BaseRequiredArgumentCommand(AbstractJavaPlugin plugin) {
+        super(plugin);
+    }
 
     @Override
     public CommandNode<CommandSourceStack> toBrigadier() {
@@ -28,11 +33,9 @@ public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
         if (annotation != null && annotation.isSuggests()) {
             builder.suggests((ctx, b) -> {
                 String input = ctx.getInput().trim().replaceFirst("/", "");
-                for (String name : PLUGIN_NAMES) {
-                    if (input.startsWith(name + " ")) {
-                        input = input.substring(name.length() + 1).trim();
-                        break;
-                    }
+                String name = this.getPlugin().getName();
+                if (input.startsWith(name + " ")) {
+                    input = input.substring(name.length() + 1).trim();
                 }
                 String[] args = input.isEmpty() ? new String[0] : input.split(" ");
                 CompletableFuture<Set<String>> tabbed = this.tabSuggestions(ctx.getSource().getSender(), args);

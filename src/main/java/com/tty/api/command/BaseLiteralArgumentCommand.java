@@ -2,6 +2,7 @@ package com.tty.api.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.command.CommandMeta;
 import com.tty.api.annotations.command.LiteralCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -10,6 +11,10 @@ import org.bukkit.command.CommandSender;
 
 
 public abstract class BaseLiteralArgumentCommand extends AbstractCommand {
+
+    protected BaseLiteralArgumentCommand(AbstractJavaPlugin plugin) {
+        super(plugin);
+    }
 
     @Override
     public LiteralCommandNode<CommandSourceStack> toBrigadier() {

@@ -4,31 +4,28 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.command.CommandMeta;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.MessageComponentSerializer;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public abstract class AbstractCommand implements SuperHandsomeCommand {
 
-    protected static final String[] PLUGIN_NAMES;
+    @Getter
+    private final AbstractJavaPlugin plugin;
 
-    static {
-        Plugin[] plugins = Bukkit.getPluginManager().getPlugins();
-        Arrays.sort(plugins, (a, b) -> Integer.compare(b.getName().length(), a.getName().length()));
-        PLUGIN_NAMES = Arrays.stream(plugins)
-                .map(Plugin::getName)
-                .toArray(String[]::new);
+    protected AbstractCommand(AbstractJavaPlugin plugin) {
+        this.plugin = plugin;
     }
+
 
     public abstract int execute(CommandSender sender, String[] args);
 
@@ -64,18 +61,16 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
         return this.execute(sender, args);
     }
 
-    private static String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
+    private String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
         String input = ctx.getInput().trim();
-        for (String name : PLUGIN_NAMES) {
-            String plain = name + " ";
-            String namespaced = name + ":" + name + " ";
-            if (input.startsWith(plain)) {
-                input = input.substring(plain.length()).trim();
-                break;
-            } else if (input.startsWith(namespaced)) {
-                input = input.substring(namespaced.length()).trim();
-                break;
-            }
+        String name = this.plugin.getName();
+
+        String plain = name + " ";
+        String namespaced = name + ":" + name + " ";
+        if (input.startsWith(plain)) {
+            input = input.substring(plain.length()).trim();
+        } else if (input.startsWith(namespaced)) {
+            input = input.substring(namespaced.length()).trim();
         }
 
         return tokenizeArgs(input);
