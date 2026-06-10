@@ -1,7 +1,6 @@
 package com.tty.api.gui;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.Log;
 import com.tty.api.annotations.gui.GuiMeta;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
@@ -60,10 +59,7 @@ public abstract class BaseInventory implements InventoryHolder {
      */
     protected abstract void afterCreatedInventory(@NotNull Inventory inventory);
 
-    /**
-     * gui 清理钩子函数
-     */
-    protected abstract void onClose();
+    protected abstract CompletableFuture<Boolean> onClose();
 
     /**
      * 返回当前创建的 gui type 类型
@@ -78,8 +74,7 @@ public abstract class BaseInventory implements InventoryHolder {
     }
 
     public void close() {
-        CompletableFuture.supplyAsync(() -> {
-            this.onClose();
+        this.onClose().thenComposeAsync(i -> {
             this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
             return CompletableFuture.completedFuture(true);
         }, this.executor).whenCompleteAsync((i, ex) -> {
@@ -91,10 +86,6 @@ public abstract class BaseInventory implements InventoryHolder {
                 this.plugin = null;
             }
         }, this.executor);
-    }
-
-    protected Log getLog() {
-        return this.plugin.getLog();
     }
 
     protected AbstractJavaPlugin getPlugin() {

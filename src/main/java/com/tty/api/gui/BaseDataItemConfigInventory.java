@@ -104,7 +104,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             }
         }).exceptionally(ex -> {
             if (!future.isCancelled()) {
-                this.getLog().error(ex, "request data error");
+                this.getPlugin().getLog().error(ex, "request data error");
             }
             this.loading = false;
             return null;
@@ -119,8 +119,6 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
 
     private void renderDataItem(List<ItemStack> list) {
         long l = System.currentTimeMillis();
-        this.getInventory();
-
         List<Integer> slotList = ((BaseDataMenu) config()).getDataItems().getSlot();
         if (list.size() > slotList.size()) throw new IllegalArgumentException("");
 
@@ -134,7 +132,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
                 }
             }
         }
-        this.getLog().debug("render data item time: {} ms, type: {}", (System.currentTimeMillis() -l), this.getType());
+        this.getPlugin().getLog().debug("render data item time: {} ms, type: {}", (System.currentTimeMillis() -l), this.getType());
     }
 
     private void updatePageButtons(PageResult<T> result) {
@@ -170,7 +168,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             itemStack = ItemStack.of(Material.valueOf(showMaterial.toUpperCase()));
             return itemStack;
         } catch (Exception e) {
-            this.getLog().error(e, "create ItemStack error. material {}", showMaterial);
+            this.getPlugin().getLog().error(e, "create ItemStack error. material {}", showMaterial);
             return null;
         }
     }
@@ -185,24 +183,27 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected void onClose() {
-        CompletableFuture<PageResult<T>> req = this.currentRequest;
-        if (req != null && !req.isDone()) {
-            req.cancel(true);
-        }
-        this.currentRequest = null;
-        this.lastPageResult = null;
-        this.prevOrigin = null;
-        this.nextOrigin = null;
-        this.prevSlots = null;
-        this.nextSlots = null;
+    protected CompletableFuture<Boolean> onClose() {
+        return CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<PageResult<T>> req = this.currentRequest;
+            if (req != null && !req.isDone()) {
+                req.cancel(true);
+            }
+            this.currentRequest = null;
+            this.lastPageResult = null;
+            this.prevOrigin = null;
+            this.nextOrigin = null;
+            this.prevSlots = null;
+            this.nextSlots = null;
+            return true;
+        }, this.getExecutor());
     }
 
     private void setDisablePageFunction(List<Integer> slots) {
         BaseDataMenu baseDataMenu = (BaseDataMenu) this.config();
         PageDisable pageDisable = baseDataMenu.getPageDisable();
         if (pageDisable == null) {
-            this.getLog().warn("pageDisable config is null, cannot disable page button");
+            this.getPlugin().getLog().warn("pageDisable config is null, cannot disable page button");
             return;
         }
         try {
@@ -211,11 +212,10 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             itemMeta.displayName(ComponentUtils.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
             for (Integer slot : slots) {
-                this.getInventory();
                 this.getInventory().setItem(slot, itemStack);
             }
         } catch (IllegalArgumentException e) {
-            this.getLog().error(e, "Invalid material for pageDisable: {}", pageDisable.getMaterial());
+            this.getPlugin().getLog().error(e, "Invalid material for pageDisable: {}", pageDisable.getMaterial());
         }
     }
 

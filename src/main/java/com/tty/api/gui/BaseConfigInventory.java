@@ -67,7 +67,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
                         this.getExecutor())
                 .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getExecutor())
                 .exceptionally(throwable -> {
-                    this.getLog().warn("GUI async render failed", throwable);
+                    this.getPlugin().getLog().warn("GUI async render failed", throwable);
                     this.getExecutor().execute(() -> this.whenRenderComplete(inventory));
                     return null;
                 });
@@ -101,7 +101,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             itemStack.setItemMeta(itemMeta);
             this.getInventory().setItem(i, itemStack);
         }
-        this.getLog().debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
+        this.getPlugin().getLog().debug("render masks time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     private void renderFunctionItems(@Nullable Map<String, FunctionItems> functionItems) {
@@ -136,7 +136,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
                 }
             }
         }
-        this.getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
+        this.getPlugin().getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
     protected String replaceKey(String content, Map<String, String> map) {
