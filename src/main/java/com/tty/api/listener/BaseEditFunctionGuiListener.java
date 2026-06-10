@@ -22,7 +22,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> exten
         Player player = event.getPlayer();
         EditGuiState state = this.isHaveState(player);
         if (state == null) return;
-        BaseInventory i = state.getI();
+        BaseInventory i = state.getInventory();
         GuiMeta annotation = i.getClass().getAnnotation(GuiMeta.class);
         if (annotation == null) return;
         if (!annotation.type().equals(this.guiType.getType())) return;

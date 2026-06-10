@@ -8,13 +8,13 @@ import org.bukkit.entity.Entity;
 public class EditGuiState extends State {
 
     @Getter
-    private final BaseInventory i;
+    private final BaseInventory inventory;
     @Getter
     private final FunctionType functionType;
 
-    public EditGuiState(Entity owner, int count, BaseInventory i, FunctionType functionType) {
+    public EditGuiState(Entity owner, int count, BaseInventory inventory, FunctionType functionType) {
         super(owner, count);
-        this.i = i;
+        this.inventory = inventory;
         this.functionType = functionType;
     }
 
