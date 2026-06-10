@@ -17,12 +17,18 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Getter
     private boolean debug = false;
+
     @Getter
     private ConfigInstance configInstance;
+
     @Getter
     private Log log;
+
     @Getter
     private final Scheduler scheduler = Scheduler.create();
+
+    @Getter
+    private NbtManager nbtManager;
 
     @Override
     public void onLoad() {
@@ -56,6 +62,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                 consumer.accept(null);
             }
         }
+        this.nbtManager = new NbtManager(this);
         this.enabling();
     }
 

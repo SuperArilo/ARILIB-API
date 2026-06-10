@@ -5,13 +5,12 @@ import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
 import com.tty.api.enumType.FunctionType;
+import com.tty.api.enumType.NbtGuiValue;
 import com.tty.api.utils.ComponentUtils;
-import com.tty.api.utils.GuiNBTKeys;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -34,17 +33,12 @@ public abstract class BaseConfigInventory extends BaseInventory {
     @Getter
     private final OfflinePlayer offlinePlayer;
 
-    private final NamespacedKey GUI_RENDER_MASK_KEY;
-    private final NamespacedKey GUI_RENDER_FUNCTION_ICON_KEY;
-
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("<([^>]+)>");
 
     public BaseConfigInventory(AbstractJavaPlugin plugin, OfflinePlayer offlinePlayer) {
         super(plugin);
         this.baseMenu = this.config();
         this.offlinePlayer = offlinePlayer;
-        this.GUI_RENDER_MASK_KEY = new NamespacedKey(this.getPlugin(), GuiNBTKeys.GUI_RENDER_MASK);
-        this.GUI_RENDER_FUNCTION_ICON_KEY = new NamespacedKey(this.getPlugin(), GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @Override
@@ -99,9 +93,10 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
+            this.getPlugin().getNbtManager().setNbt(NbtGuiValue.GUI_MASK_ICON, itemStack, PersistentDataType.STRING, FunctionType.MASK_ICON.getName());
+
             ItemMeta itemMeta = itemStack.getItemMeta();
             itemMeta.displayName(ComponentUtils.text(mask.getName()));
-            itemMeta.getPersistentDataContainer().set(GUI_RENDER_MASK_KEY, PersistentDataType.STRING, FunctionType.MASK_ICON.name());
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.getInventory().setItem(i, itemStack);
@@ -120,22 +115,21 @@ public abstract class BaseConfigInventory extends BaseInventory {
             ItemStack prvateItemStack = value.getItemStack();
             if (prvateItemStack == null) {
                 ItemStack o = ItemStack.of(Material.valueOf(value.getMaterial().toUpperCase()));
-                ItemMeta mo = o.getItemMeta();
+                this.getPlugin().getNbtManager().setNbt(NbtGuiValue.GUI_FUNCTION_ICON, o, PersistentDataType.STRING, functionType.getName());
 
+                ItemMeta mo = o.getItemMeta();
                 String name = value.getName();
                 if (name != null) {
                     mo.displayName(ComponentUtils.text(name));
                 }
                 mo.lore(value.getLore().stream().map(ComponentUtils::text).toList());
-                mo.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
-
                 o.setItemMeta(mo);
                 for (Integer integer : value.getSlot()) {
                     this.getInventory().setItem(integer, o);
                 }
             } else {
+                this.getPlugin().getNbtManager().setNbt(NbtGuiValue.GUI_FUNCTION_ICON, prvateItemStack, PersistentDataType.STRING, functionType.getName());
                 ItemMeta itemMeta = prvateItemStack.getItemMeta();
-                itemMeta.getPersistentDataContainer().set(GUI_RENDER_FUNCTION_ICON_KEY, PersistentDataType.STRING, functionType.name());
                 prvateItemStack.setItemMeta(itemMeta);
                 for (Integer integer : value.getSlot()) {
                     this.getInventory().setItem(integer, prvateItemStack);
@@ -162,36 +156,6 @@ public abstract class BaseConfigInventory extends BaseInventory {
         }
         matcher.appendTail(sb);
         return sb.toString();
-    }
-
-    /**
-     * 给指定的 ItemStack 的 ItemMeta 设置 NBT
-     * @param itemMeta ItemStack 的 ItemMeta
-     * @param key key 名
-     * @param type 类型
-     * @param value 值
-     * @param <T> 类型 T
-     */
-    protected <T> void setNBT(@NotNull ItemMeta itemMeta, String key, PersistentDataType<T, T> type, T value) {
-        if (this.getPlugin() == null) {
-            this.getLog().debug("plugin in inventory is null, cannot set NBT for key: {}", key);
-            return;
-        }
-        itemMeta.getPersistentDataContainer().set(new NamespacedKey(this.getPlugin(), key), type, value);
-    }
-
-    protected void removeNBT(@NotNull ItemStack itemStack, NamespacedKey key) {
-        ItemMeta itemMeta = itemStack.getItemMeta();
-        if (itemMeta == null) return;
-        itemMeta.getPersistentDataContainer().remove(key);
-        itemStack.setItemMeta(itemMeta);
-    }
-
-    protected <T> void setNBT(@NotNull ItemStack itemStack, NamespacedKey key, PersistentDataType<T, T> type, T value) {
-        ItemMeta itemMeta = itemStack.getItemMeta();
-        if (itemMeta == null) return;
-        itemMeta.getPersistentDataContainer().set(key, type, value);
-        itemStack.setItemMeta(itemMeta);
     }
 
 }

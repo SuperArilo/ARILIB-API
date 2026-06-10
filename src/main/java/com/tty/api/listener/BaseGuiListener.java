@@ -5,10 +5,8 @@ import com.tty.api.annotations.function_type.FunctionHandler;
 import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
+import com.tty.api.enumType.NbtGuiValue;
 import com.tty.api.gui.BaseInventory;
-import com.tty.api.utils.GuiNBTKeys;
-import lombok.Getter;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,8 +22,6 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
-    @Getter
-    private final NamespacedKey FunctionIconNamespacedKey;
     private final AbstractJavaPlugin plugin;
     protected final GuiKeyEnum guiType;
 
@@ -34,7 +30,6 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
     protected BaseGuiListener(@NotNull AbstractJavaPlugin plugin, @NotNull GuiKeyEnum guiType) {
         this.guiType = guiType;
         this.plugin = plugin;
-        this.FunctionIconNamespacedKey = new NamespacedKey(this.plugin, GuiNBTKeys.GUI_RENDER_FUNCTION_ICON);
     }
 
     @EventHandler
@@ -74,7 +69,7 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         ItemMeta meta = currentItem.getItemMeta();
         if (meta == null) return;
 
-        FunctionType type = this.ItemNBT_TypeCheck(meta.getPersistentDataContainer().get(this.FunctionIconNamespacedKey, PersistentDataType.STRING));
+        FunctionType type = this.ItemNBT_TypeCheck(this.plugin.getNbtManager().getNbt(NbtGuiValue.GUI_FUNCTION_ICON, currentItem, PersistentDataType.STRING));
         if (type == null) return;
 
         if (event.getWhoClicked() instanceof Player player) {
