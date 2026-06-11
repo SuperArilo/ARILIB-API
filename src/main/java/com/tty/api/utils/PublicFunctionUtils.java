@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.plugin.RegisteredServiceProvider;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -13,26 +12,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("UnstableApiUsage")
 public class PublicFunctionUtils {
-
-    public static <T> void loadPlugin(String pluginName, Class<T> tClass, Consumer<T> consumer)  {
-        if (Bukkit.getPluginManager().isPluginEnabled(pluginName)) {
-            RegisteredServiceProvider<T> registration = Bukkit.getServer().getServicesManager().getRegistration(tClass);
-            if (registration != null) {
-                consumer.accept(registration.getProvider());
-            } else {
-                Bukkit.getLogger().warning("failed to load class " + tClass.getName() + ". because " + pluginName + " is null");
-                consumer.accept(null);
-            }
-        } else {
-            Bukkit.getLogger().warning("failed to load class " + tClass.getName() + ". because " + pluginName + " not found.");
-            consumer.accept(null);
-        }
-    }
 
     public static <T> T deepCopy(T obj, Type typeOfT) {
         Gson gson = new GsonBuilder().create();
@@ -72,10 +54,9 @@ public class PublicFunctionUtils {
      */
     public static Set<String> tabList(String input, Set<String> raw) {
         if (input == null) input = "";
-
-        String lowerInput = input.toLowerCase();
+        String finalInput = input;
         return raw.stream()
-                .filter(s -> s.toLowerCase().startsWith(lowerInput))
+                .filter(s -> s.startsWith(finalInput))
                 .collect(Collectors.toSet());
     }
 
