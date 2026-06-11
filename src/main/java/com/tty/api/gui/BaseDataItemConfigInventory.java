@@ -196,7 +196,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             this.prevSlots = null;
             this.nextSlots = null;
             return true;
-        }, this.getExecutor());
+        }, this.getExecutorAsync());
     }
 
     private void setDisablePageFunction(List<Integer> slots) {

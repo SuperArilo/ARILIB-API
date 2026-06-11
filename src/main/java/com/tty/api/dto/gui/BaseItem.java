@@ -11,12 +11,15 @@ import java.util.List;
 
 @Data
 public class BaseItem implements Serializable {
+    @Expose
     private String name;
     @Nullable
-    @Expose
     /* 直接设置 item，不会被 yml 解析 */
     private ItemStack itemStack;
+    @Expose
     private String material;
+    @Expose
     private List<Integer> slot;
+    @Expose
     private List<String> lore = new ArrayList<>();
 }

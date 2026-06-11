@@ -103,6 +103,10 @@ public class ConfigInstance {
         configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
     }
 
+    public <T> T deepCopy(T obj, Type typeOfT) {
+        return this.gson.fromJson(this.gson.toJson(obj), typeOfT);
+    }
+
     public void setConfig(String name, YamlConfiguration instance) {
         this.configs.put(name, instance);
     }

@@ -1,5 +1,6 @@
 package com.tty.api.gui;
 
+import com.google.common.reflect.TypeToken;
 import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
@@ -56,26 +57,35 @@ public abstract class BaseConfigInventory extends BaseInventory {
 
     @Override
     protected void afterCreatedInventory(@NotNull Inventory inventory) {
-        this.beforeRenderMasksAsync(this.baseMenu.getMask())
-                .thenCombineAsync(
-                        this.beforeRenderFunctionItemsAsync(this.baseMenu.getFunctionItems()),
-                        (mask, items) -> {
-                            this.renderMasks(mask);
-                            this.renderFunctionItems(items);
-                            return CompletableFuture.completedFuture(null);
-                        },
-                        this.getExecutor())
-                .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getExecutor())
-                .exceptionally(throwable -> {
-                    this.getPlugin().getLog().warn("GUI async render failed", throwable);
-                    this.getExecutor().execute(() -> this.whenRenderComplete(inventory));
-                    return null;
-                });
+        CompletableFuture.supplyAsync(() -> {
+            Mask mask = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getMask(), Mask.class);
+            this.beforeRenderMasksAsync(mask);
+            return mask;
+        }, this.getExecutorAsync())
+        .thenComposeAsync(i -> {
+            this.renderMasks(i);
+            return CompletableFuture.completedFuture(true);
+        }, this.getExecutorSync())
+        .thenComposeAsync(i -> {
+            Map<String, FunctionItems> copy = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getFunctionItems(), new TypeToken<Map<String, FunctionItems>>() {}.getType());
+            this.beforeRenderFunctionItemsAsync(copy);
+            return CompletableFuture.completedFuture(copy);
+        }, this.getExecutorAsync())
+        .thenComposeAsync(i -> {
+            this.renderFunctionItems(i);
+            return CompletableFuture.completedFuture(true);
+        }, this.getExecutorSync())
+        .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getExecutorAsync())
+        .exceptionallyAsync(throwable -> {
+            this.getPlugin().getLog().warn("GUI async render failed", throwable);
+            this.getInventory().close();
+            return null;
+        }, this.getExecutorSync());
     }
 
-    protected abstract @NotNull CompletableFuture<Mask> beforeRenderMasksAsync(@Nullable Mask mask);
+    protected abstract void beforeRenderMasksAsync(@Nullable Mask mask);
 
-    protected abstract @NotNull CompletableFuture< Map<String, FunctionItems>> beforeRenderFunctionItemsAsync(@Nullable Map<String, FunctionItems> functionItems);
+    protected abstract void beforeRenderFunctionItemsAsync(@Nullable Map<String, FunctionItems> functionItems);
 
     /**
      * 所有渲染完成后
@@ -96,7 +106,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             this.getPlugin().getNbtManager().setNbt(NbtGuiValue.GUI_MASK_ICON, itemStack, PersistentDataType.STRING, FunctionType.MASK_ICON.getName());
 
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(ComponentUtils.text(mask.getName()));
+            itemMeta.displayName(ComponentUtils.text(mask.getName(), this.getOfflinePlayer()));
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.getInventory().setItem(i, itemStack);
@@ -109,7 +119,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         long l = System.currentTimeMillis();
         for (FunctionItems value : functionItems.values()) {
             FunctionType functionType = value.getType();
-            if (functionType == null) return;
+            if (functionType == null) continue;
 
             //判断字段 item stack 是否存在
             ItemStack prvateItemStack = value.getItemStack();
@@ -120,9 +130,9 @@ public abstract class BaseConfigInventory extends BaseInventory {
                 ItemMeta mo = o.getItemMeta();
                 String name = value.getName();
                 if (name != null) {
-                    mo.displayName(ComponentUtils.text(name));
+                    mo.displayName(ComponentUtils.text(name, this.getOfflinePlayer()));
                 }
-                mo.lore(value.getLore().stream().map(ComponentUtils::text).toList());
+                mo.lore(value.getLore().stream().map(i -> ComponentUtils.text(i, this.getOfflinePlayer())).toList());
                 o.setItemMeta(mo);
                 for (Integer integer : value.getSlot()) {
                     this.getInventory().setItem(integer, o);

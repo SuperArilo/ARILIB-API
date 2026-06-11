@@ -20,11 +20,15 @@ public abstract class BaseInventory implements InventoryHolder {
     private volatile Inventory inventory;
 
     @Getter
-    private final Executor executor;
+    private final Executor executorAsync;
+
+    @Getter
+    private final Executor executorSync;
 
     protected BaseInventory(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
-        this.executor = task -> this.getPlugin().getScheduler().runAsync(this.getPlugin(), t -> task.run());
+        this.executorAsync = task -> this.getPlugin().getScheduler().runAsync(this.getPlugin(), t -> task.run());
+        this.executorSync = task -> this.getPlugin().getScheduler().run(this.getPlugin(), t -> task.run());
     }
 
     @Override
@@ -77,7 +81,7 @@ public abstract class BaseInventory implements InventoryHolder {
         this.onClose().thenComposeAsync(i -> {
             this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
             return CompletableFuture.completedFuture(true);
-        }, this.executor).whenCompleteAsync((i, ex) -> {
+        }, this.executorAsync).whenCompleteAsync((i, ex) -> {
             if (ex != null) {
                 this.plugin.getLog().error(ex);
             }
@@ -85,7 +89,7 @@ public abstract class BaseInventory implements InventoryHolder {
                 this.inventory = null;
                 this.plugin = null;
             }
-        }, this.executor);
+        }, this.executorAsync);
     }
 
     protected AbstractJavaPlugin getPlugin() {
