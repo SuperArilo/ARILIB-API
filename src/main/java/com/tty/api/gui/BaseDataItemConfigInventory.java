@@ -183,20 +183,17 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
     }
 
     @Override
-    protected CompletableFuture<Boolean> onClose() {
-        return CompletableFuture.supplyAsync(() -> {
-            CompletableFuture<PageResult<T>> req = this.currentRequest;
-            if (req != null && !req.isDone()) {
-                req.cancel(true);
-            }
-            this.currentRequest = null;
-            this.lastPageResult = null;
-            this.prevOrigin = null;
-            this.nextOrigin = null;
-            this.prevSlots = null;
-            this.nextSlots = null;
-            return true;
-        }, this.getExecutorAsync());
+    protected void onClose() {
+        CompletableFuture<PageResult<T>> req = this.currentRequest;
+        if (req != null && !req.isDone()) {
+            req.cancel(true);
+        }
+        this.currentRequest = null;
+        this.lastPageResult = null;
+        this.prevOrigin = null;
+        this.nextOrigin = null;
+        this.prevSlots = null;
+        this.nextSlots = null;
     }
 
     private void setDisablePageFunction(List<Integer> slots) {

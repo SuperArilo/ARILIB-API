@@ -1,21 +1,24 @@
 package com.tty.api.state;
 
 import com.tty.api.enumType.FunctionType;
-import com.tty.api.gui.BaseInventory;
+import com.tty.api.enumType.GuiKeyEnum;
 import lombok.Getter;
 import org.bukkit.entity.Entity;
 
-public class EditGuiState extends State {
+public class EditGuiState<T> extends State {
 
     @Getter
-    private final BaseInventory inventory;
+    private final T data;
     @Getter
     private final FunctionType functionType;
+    @Getter
+    private final GuiKeyEnum type;
 
-    public EditGuiState(Entity owner, int count, BaseInventory inventory, FunctionType functionType) {
+    public EditGuiState(Entity owner, int count, T data, FunctionType functionType, GuiKeyEnum type) {
         super(owner, count);
-        this.inventory = inventory;
+        this.data = data;
         this.functionType = functionType;
+        this.type = type;
     }
 
 }

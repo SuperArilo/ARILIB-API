@@ -1,7 +1,6 @@
 package com.tty.api.listener;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
@@ -11,7 +10,7 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 
-public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> extends BaseGuiListener<T> {
+public abstract class BaseEditFunctionGuiListener<T extends BaseInventory, D> extends BaseGuiListener<T> {
 
     protected BaseEditFunctionGuiListener(AbstractJavaPlugin plugin, GuiKeyEnum guiType) {
         super(plugin, guiType);
@@ -20,12 +19,8 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> exten
     @EventHandler
     public void onPlayerChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
-        EditGuiState state = this.isHaveState(player);
-        if (state == null) return;
-        BaseInventory i = state.getInventory();
-        GuiMeta annotation = i.getClass().getAnnotation(GuiMeta.class);
-        if (annotation == null) return;
-        if (!annotation.type().equals(this.guiType.getType())) return;
+        EditGuiState<D> state = this.isHaveState(player);
+        if (state == null || !this.getGuiType().equals(state.getType())) return;
         event.setCancelled(true);
         String message = FormatUtils.componentToString(event.message());
 
@@ -44,7 +39,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> exten
         }
     }
 
-    public abstract EditGuiState isHaveState(Player player);
+    public abstract EditGuiState<D> isHaveState(Player player);
 
     /**
      * 检查玩家的输入内容
@@ -52,7 +47,8 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory> exten
      * @param state 玩家的输入状态类
      * @return true 检查通过，反之
      */
-    public abstract boolean onTitleEditStatus(String message, EditGuiState state);
+    public abstract boolean onTitleEditStatus(String message, EditGuiState<D> state);
 
     public abstract void whenTimeout(Player player);
+
 }

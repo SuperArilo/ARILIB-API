@@ -1,11 +1,8 @@
 package com.tty.api.utils;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -15,11 +12,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class PublicFunctionUtils {
-
-    public static <T> T deepCopy(T obj, Type typeOfT) {
-        Gson gson = new GsonBuilder().create();
-        return gson.fromJson(gson.toJson(obj), typeOfT);
-    }
 
     /**
      * 检查材质是否是ITEM

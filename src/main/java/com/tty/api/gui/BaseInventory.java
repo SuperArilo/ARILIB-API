@@ -63,7 +63,7 @@ public abstract class BaseInventory implements InventoryHolder {
      */
     protected abstract void afterCreatedInventory(@NotNull Inventory inventory);
 
-    protected abstract CompletableFuture<Boolean> onClose();
+    protected abstract void onClose();
 
     /**
      * 返回当前创建的 gui type 类型
@@ -78,9 +78,14 @@ public abstract class BaseInventory implements InventoryHolder {
     }
 
     public void close() {
-        this.onClose().thenComposeAsync(i -> {
-            this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
-            return CompletableFuture.completedFuture(true);
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                this.onClose();
+                this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         }, this.executorAsync).whenCompleteAsync((i, ex) -> {
             if (ex != null) {
                 this.plugin.getLog().error(ex);

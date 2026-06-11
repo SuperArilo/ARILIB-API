@@ -7,6 +7,7 @@ import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.enumType.NbtGuiValue;
 import com.tty.api.gui.BaseInventory;
+import lombok.Getter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -23,7 +24,8 @@ import org.jetbrains.annotations.NotNull;
 public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
     private final AbstractJavaPlugin plugin;
-    protected final GuiKeyEnum guiType;
+    @Getter
+    private final GuiKeyEnum guiType;
 
     private FunctionHandler<T> functionHandler;
 
