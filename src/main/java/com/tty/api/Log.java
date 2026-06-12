@@ -185,7 +185,7 @@ public class Log {
     }
 
     private String wrapCaller(String msg) {
-        return "[" + this.getCallerClassName() + "] " + msg;
+        return "[" + this.getCallerClassName() + "] [" + this.getThreadName() + "] " + msg;
     }
 
     private String getCallerClassName() {
@@ -197,6 +197,10 @@ public class Log {
                         .orElse("Unknown")
         );
         return this.colorize(className);
+    }
+
+    private String getThreadName() {
+        return this.colorize(Thread.currentThread().getName());
     }
 
     private String randomColor() {

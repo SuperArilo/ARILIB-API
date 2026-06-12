@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 public abstract class AbstractJavaPlugin extends JavaPlugin {
@@ -26,6 +27,12 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Getter
     private final Scheduler scheduler = Scheduler.create();
+
+    @Getter
+    private Executor executorSync;
+
+    @Getter
+    private Executor executorAsync;
 
     @Getter
     private NbtManager nbtManager;
@@ -44,6 +51,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        this.executorSync = task -> this.scheduler.run(this, i -> task.run());
+        this.executorAsync = task -> this.scheduler.runAsync(this, i -> task.run());
         for (Listener event : this.registerEvents()) {
             Bukkit.getPluginManager().registerEvents(event, this);
         }

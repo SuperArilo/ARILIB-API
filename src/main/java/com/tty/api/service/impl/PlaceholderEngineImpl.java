@@ -1,5 +1,6 @@
 package com.tty.api.service.impl;
 
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.utils.ComponentUtils;
 import com.tty.api.service.placeholder.PlaceholderEngine;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
@@ -18,9 +19,15 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
     private static final Pattern PATTERN = Pattern.compile("<([a-z0-9_]+)>");
 
+    private final AbstractJavaPlugin plugin;
+
     @Setter
     @Getter
     private PlaceholderRegistry registry;
+
+    public PlaceholderEngineImpl(AbstractJavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     @Override
     public CompletableFuture<Component> render(String template, OfflinePlayer context) {
@@ -31,7 +38,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         while (matcher.find()) {
             String key = matcher.group(1);
             if (futures.containsKey(key)) continue;
-            registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
+            this.registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
         }
 
         if (futures.isEmpty()) {
@@ -40,11 +47,11 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
         CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
 
-        return CompletableFuture.allOf(all).thenApply(v -> {
+        return CompletableFuture.allOf(all).thenApplyAsync(v -> {
             Map<String, Component> resolved = new HashMap<>(futures.size());
             futures.forEach((k, f) -> resolved.put(k, f.join()));
             return ComponentUtils.text(template, context, resolved);
-        });
+        }, this.plugin.getExecutorAsync());
     }
 
     @Override
@@ -60,7 +67,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
         Map<String, CompletableFuture<Component>> futures = new HashMap<>(keys.size());
         for (String key : keys) {
-            registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
+            this.registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
         }
 
         if (futures.isEmpty()) {
@@ -73,7 +80,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
         CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
 
-        return CompletableFuture.allOf(all).thenApply(v -> {
+        return CompletableFuture.allOf(all).thenApplyAsync(v -> {
             Map<String, Component> resolved = new HashMap<>(futures.size());
             futures.forEach((k, f) -> resolved.put(k, f.join()));
             List<Component> components = new ArrayList<>(list.size());
@@ -81,6 +88,6 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
                 components.add(ComponentUtils.text(line, context, resolved));
             }
             return Component.join(JoinConfiguration.separator(Component.newline()), components);
-        });
+        }, this.plugin.getExecutorAsync());
     }
 }

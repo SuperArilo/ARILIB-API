@@ -92,7 +92,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         if (this.currentRequest == future) return;
         this.currentRequest = future;
         this.loading = true;
-        future.thenAccept(result -> {
+        future.thenAcceptAsync(result -> {
             if (future.isCancelled()) {
                 this.loading = false;
                 return;
@@ -102,13 +102,14 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             } finally {
                 this.loading = false;
             }
-        }).exceptionally(ex -> {
+        }, this.getPlugin().getExecutorAsync())
+        .exceptionallyAsync(ex -> {
             if (!future.isCancelled()) {
                 this.getPlugin().getLog().error(ex, "request data error");
             }
             this.loading = false;
             return null;
-        });
+        }, this.getPlugin().getExecutorAsync());
     }
 
     private void applyPageResult(PageResult<T> result) {
@@ -204,7 +205,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
             return;
         }
         try {
-            ItemStack itemStack = ItemStack.of(Material.valueOf(pageDisable.getMaterial().toUpperCase()));
+            ItemStack itemStack = this.createItemStack(pageDisable.getMaterial().toUpperCase());
             ItemMeta itemMeta = itemStack.getItemMeta();
             itemMeta.displayName(ComponentUtils.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);

@@ -17,9 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public abstract class EntityRepository<T> {
 
@@ -27,21 +25,14 @@ public abstract class EntityRepository<T> {
     protected final BaseDataManager<T> manager;
 
     // 实体缓存，键为分区+查询条件，值为单个实体
-    private final Cache<@NotNull PartitionedKey<QueryKey>, T> entityCache =
-            Caffeine.newBuilder()
-                    .maximumSize(2000)
-                    .expireAfterWrite(300, TimeUnit.MINUTES)
-                    .build();
+    private final Cache<@NotNull PartitionedKey<QueryKey>, T> entityCache = Caffeine.newBuilder().maximumSize(2000).expireAfterWrite(300, TimeUnit.MINUTES).build();
 
     // 分页缓存，键为分区+分页条件，值为分页结果
-    private final Cache<@NotNull PartitionedKey<PageKey<QueryKey>>, PageResult<T>> pageCache =
-            Caffeine.newBuilder()
-                    .maximumSize(200)
-                    .expireAfterWrite(300, TimeUnit.MINUTES)
-                    .build();
+    private final Cache<@NotNull PartitionedKey<PageKey<QueryKey>>, PageResult<T>> pageCache = Caffeine.newBuilder().maximumSize(200).expireAfterWrite(300, TimeUnit.MINUTES).build();
 
     // 正在进行的实体加载任务，用于防止缓存击穿
     private final ConcurrentHashMap<PartitionedKey<QueryKey>, CompletableFuture<T>> pendingEntityFutures = new ConcurrentHashMap<>();
+
     // 正在进行的分页加载任务，用于防止缓存击穿
     private final ConcurrentHashMap<PartitionedKey<PageKey<QueryKey>>, CompletableFuture<PageResult<T>>> pendingPageFutures = new ConcurrentHashMap<>();
 
@@ -57,6 +48,14 @@ public abstract class EntityRepository<T> {
         this.debug("EntityRepository initialized with manager: {}", manager != null ? manager.getClass().getSimpleName() : "null");
     }
 
+    /**
+     * 根据同步还是异步自动返回调度器
+     * @return 调度器
+     */
+    private Executor getAutoExecutor() {
+        return this.isAsync() ? this.plugin.getExecutorAsync() : Runnable::run;
+    }
+    
     public CompletableFuture<@Nullable T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
         QueryKey queryKey = wrapQueryKey(key);
         PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
@@ -87,7 +86,7 @@ public abstract class EntityRepository<T> {
             return newFuture;
         }
 
-        this.manager.get(key).whenComplete((entity, throwable) -> {
+        this.manager.get(key).whenCompleteAsync((entity, throwable) -> {
             if (throwable != null) {
                 this.debug("Error loading entity for key {}: {}", pKey, throwable.getMessage());
                 newFuture.completeExceptionally(throwable);
@@ -99,7 +98,7 @@ public abstract class EntityRepository<T> {
                 newFuture.complete(entity);
             }
             this.pendingEntityFutures.remove(pKey, newFuture);
-        });
+        }, this.getAutoExecutor());
 
         return newFuture;
     }
@@ -134,7 +133,7 @@ public abstract class EntityRepository<T> {
             return newFuture;
         }
 
-        this.manager.getList(pageNum, pageSize, condition).whenComplete((result, throwable) -> {
+        this.manager.getList(pageNum, pageSize, condition).whenCompleteAsync((result, throwable) -> {
             if (throwable != null) {
                 this.debug("Error loading page for key {}: {}", pPageKey, throwable.getMessage());
                 newFuture.completeExceptionally(throwable);
@@ -149,7 +148,7 @@ public abstract class EntityRepository<T> {
                 newFuture.complete(result);
             }
             this.pendingPageFutures.remove(pPageKey, newFuture);
-        });
+        }, this.getAutoExecutor());
 
         return newFuture;
     }
@@ -158,14 +157,14 @@ public abstract class EntityRepository<T> {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return this.manager.create(entity).thenApply(created -> {
+        return this.manager.create(entity).thenApplyAsync(created -> {
             if (created != null) {
                 this.cacheEntity(created, partition);
                 this.debug("Entity created successfully: {}", created);
                 this.invalidateAllPagesInPartition(partition);
             }
             return created;
-        });
+        }, this.getAutoExecutor());
     }
 
     public CompletableFuture<Boolean> update(T entity, LambdaQueryWrapper<T> key, PartitionKey partition) {
@@ -173,13 +172,13 @@ public abstract class EntityRepository<T> {
             return CompletableFuture.completedFuture(false);
         }
 
-        return this.manager.get(key).thenCompose(oldEntity -> {
+        return this.manager.get(key).thenComposeAsync(oldEntity -> {
             if (oldEntity == null) {
                 this.debug("Entity not found for update with key: {}, partition: {}", key, partition);
                 return CompletableFuture.completedFuture(false);
             }
 
-            return this.manager.update(entity, key).thenApply(success -> {
+            return this.manager.update(entity, key).thenApplyAsync(success -> {
                 if (!success) return false;
                 this.invalidateEntityCaches(oldEntity, partition);
                 this.cacheEntity(entity, partition);
@@ -187,27 +186,27 @@ public abstract class EntityRepository<T> {
 
                 this.debug("Entity updated successfully: {}", entity);
                 return true;
-            });
-        });
+            }, this.getAutoExecutor());
+        }, this.getAutoExecutor());
     }
 
     public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
         }
-        return this.manager.get(key).thenCompose(entity -> {
+        return this.manager.get(key).thenComposeAsync(entity -> {
             if (entity == null) {
                 this.debug("Entity not found for deletion with key: {}, partition: {}", key, partition);
                 return CompletableFuture.completedFuture(false);
             }
-            return this.manager.delete(key).thenApply(success -> {
+            return this.manager.delete(key).thenApplyAsync(success -> {
                 if (!success) return false;
                 this.invalidateEntityCaches(entity, partition);
                 this.invalidateAllPagesInPartition(partition);
                 this.debug("Entity deleted successfully: {}", entity);
                 return true;
-            });
-        });
+            }, this.getAutoExecutor());
+        }, this.getAutoExecutor());
     }
 
     /**
@@ -452,16 +451,38 @@ public abstract class EntityRepository<T> {
         return this.manager.isAsync();
     }
 
-    /**
-     * 中止所有正在进行的加载任务
-     */
-    public void abort() {
-        this.debug("Aborting all pending futures...");
-        this.pendingEntityFutures.values().forEach(f -> f.cancel(true));
-        this.pendingPageFutures.values().forEach(f -> f.cancel(true));
+    public void shutdown() {
+        this.debug("shutting down repository, waiting for pending tasks...");
+
+        List<CompletableFuture<?>> allPending = new ArrayList<>();
+        allPending.addAll(this.pendingEntityFutures.values());
+        allPending.addAll(this.pendingPageFutures.values());
+
+        if (allPending.isEmpty()) {
+            this.debug("No pending tasks, proceeding to close.");
+        } else {
+            CompletableFuture<Void> allDone = CompletableFuture.allOf(allPending.toArray(new CompletableFuture[0]));
+            try {
+                allDone.get(2, TimeUnit.MINUTES);
+                this.debug("all pending tasks completed successfully.");
+            } catch (TimeoutException e) {
+                this.debug("timeout waiting for tasks, some may be incomplete.");
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                this.debug("interrupted while waiting for tasks.");
+                return;
+            } catch (ExecutionException e) {
+                this.debug("some tasks failed during shutdown: " + e.getCause().getMessage());
+            }
+        }
+
         this.pendingEntityFutures.clear();
         this.pendingPageFutures.clear();
+
+        this.entityCache.invalidateAll();
+        this.pageCache.invalidateAll();
         this.manager.shutdown();
-        this.debug("All pending futures aborted.");
+        this.debug("repository shutdown completed.");
     }
 }

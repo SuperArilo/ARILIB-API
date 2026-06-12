@@ -40,10 +40,10 @@ public abstract class BaseRequiredArgumentCommand<T> extends AbstractCommand {
                 String[] args = input.isEmpty() ? new String[0] : input.split(" ");
                 CompletableFuture<Set<String>> tabbed = this.tabSuggestions(ctx.getSource().getSender(), args);
                 if (tabbed == null) return b.buildFuture();
-                return tabbed.thenApply(list -> {
+                return tabbed.thenApplyAsync(list -> {
                     for (String s : list) {  b.suggest(s); }
                     return b.build();
-                });
+                }, this.getPlugin().getExecutorAsync());
             });
         }
         for (SuperHandsomeCommand command : this.thenCommands()) {

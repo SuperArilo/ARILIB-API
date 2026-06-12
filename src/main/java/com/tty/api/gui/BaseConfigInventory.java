@@ -61,26 +61,26 @@ public abstract class BaseConfigInventory extends BaseInventory {
             Mask mask = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getMask(), Mask.class);
             this.beforeRenderMasksAsync(mask);
             return mask;
-        }, this.getExecutorAsync())
+        }, this.getPlugin().getExecutorAsync())
         .thenComposeAsync(i -> {
             this.renderMasks(i);
             return CompletableFuture.completedFuture(true);
-        }, this.getExecutorSync())
+        }, this.getPlugin().getExecutorSync())
         .thenComposeAsync(i -> {
             Map<String, FunctionItems> copy = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getFunctionItems(), new TypeToken<Map<String, FunctionItems>>() {}.getType());
             this.beforeRenderFunctionItemsAsync(copy);
             return CompletableFuture.completedFuture(copy);
-        }, this.getExecutorAsync())
+        }, this.getPlugin().getExecutorAsync())
         .thenComposeAsync(i -> {
             this.renderFunctionItems(i);
             return CompletableFuture.completedFuture(true);
-        }, this.getExecutorSync())
-        .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getExecutorAsync())
+        }, this.getPlugin().getExecutorSync())
+        .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getPlugin().getExecutorAsync())
         .exceptionallyAsync(throwable -> {
             this.getPlugin().getLog().warn("GUI async render failed", throwable);
             this.getInventory().close();
             return null;
-        }, this.getExecutorSync());
+        }, this.getPlugin().getExecutorSync());
     }
 
     protected abstract void beforeRenderMasksAsync(@Nullable Mask mask);

@@ -18,7 +18,7 @@ public abstract class BaseDataManager<T> {
      * 是否异步
      */
     @Getter
-    private boolean isAsync;
+    private volatile boolean isAsync;
 
     private final ExecutorService executor;
 

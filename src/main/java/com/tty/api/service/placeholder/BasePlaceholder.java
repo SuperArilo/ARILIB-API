@@ -1,6 +1,7 @@
 package com.tty.api.service.placeholder;
 
 import com.google.common.reflect.TypeToken;
+import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.utils.ComponentUtils;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.ConfigInstance;
@@ -23,10 +24,10 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
 
     private final Type typeTokenList = new TypeToken<List<String>>() {}.getType();
 
-    public BasePlaceholder(ConfigInstance instance, E type) {
-        this.instance = instance;
+    public BasePlaceholder(AbstractJavaPlugin plugin, E type) {
+        this.instance = plugin.getConfigInstance();
         this.type = type;
-        this.engine = new PlaceholderEngineImpl();
+        this.engine = new PlaceholderEngineImpl(plugin);
     }
 
     protected CompletableFuture<Component> empty() {
