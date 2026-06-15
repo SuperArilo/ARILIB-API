@@ -10,7 +10,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -80,7 +79,7 @@ public class ConfigInstance {
         return path == null || path.isEmpty();
     }
 
-    public <T extends Enum<T> & FilePathEnum, S> void setValue(JavaPlugin plugin, String topKeyPath, T filePath, Map<String, S> values) throws IOException {
+    public <T extends Enum<T> & FilePathEnum, S> void setValue(String path, T filePath, Map<String, S> values) throws IOException {
 
         YamlConfiguration configuration = this.getObject(filePath.name());
         if (configuration == null) throw new NullPointerException("Config file not found: " + filePath.name());
@@ -96,7 +95,7 @@ public class ConfigInstance {
                     this.plugin.getLog().warn(e, "unexpected error converting key {}", k);
                 }
             }
-            configuration.set(topKeyPath + "." + k, valueToSave);
+            configuration.set(path + "." + k, valueToSave);
         });
 
         this.setConfig(filePath.name(), configuration);
