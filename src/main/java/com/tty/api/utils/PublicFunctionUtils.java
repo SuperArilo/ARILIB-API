@@ -88,7 +88,7 @@ public class PublicFunctionUtils {
         }
         if (uuid.get() == null) {
             try {
-                uuid.set(Bukkit.getOfflinePlayer(value).getUniqueId());
+                uuid.set(Bukkit.getServer().getOfflinePlayer(value).getUniqueId());
             } catch (Exception e) {
                 return null;
             }
