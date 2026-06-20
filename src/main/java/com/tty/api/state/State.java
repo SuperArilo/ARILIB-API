@@ -51,6 +51,10 @@ public class State {
         return this.count.get() >= this.max_count;
     }
 
+    public int getRemain() {
+        return this.max_count - this.count.get();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
