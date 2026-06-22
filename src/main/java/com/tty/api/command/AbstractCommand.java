@@ -1,9 +1,12 @@
 package com.tty.api.command;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.context.ParsedCommandNode;
+import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.mojang.brigadier.tree.CommandNode;
 import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.annotations.command.CommandMeta;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -44,6 +47,7 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
         if (this.isDisabledInGame()) {
             throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.disableInGame())).create();
         }
+
         CommandMeta meta = this.getClass().getAnnotation(CommandMeta.class);
         if (meta == null) {
             throw new IllegalStateException("missing @CommandMeta on " + getClass());
@@ -52,7 +56,7 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
             throw new DynamicCommandExceptionType(name -> MessageComponentSerializer.message().serialize(this.onlyUseInGame())).create(sender.getName());
         }
 
-        String[] args = getRealCommandArgs(ctx);
+        String[] args = this.getRealCommandArgs(ctx);
 
         if (args.length != meta.tokenLength()) {
             throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.tokenNotAllow())).create();
@@ -62,47 +66,18 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
     }
 
     private String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
-        String input = ctx.getInput().trim();
-        String name = this.plugin.getName();
-
-        String plain = name + " ";
-        String namespaced = name + ":" + name + " ";
-        if (input.startsWith(plain)) {
-            input = input.substring(plain.length()).trim();
-        } else if (input.startsWith(namespaced)) {
-            input = input.substring(namespaced.length()).trim();
-        }
-
-        return tokenizeArgs(input);
-    }
-
-    private static String @NotNull [] tokenizeArgs(String input) {
-        if (input.isEmpty()) return new String[0];
+        String input = ctx.getInput();
         List<String> args = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean inQuotes = false;
-        boolean escape = false;
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-
-            if (escape) {
-                current.append(c);
-                escape = false;
-            } else if (c == '\\') {
-                escape = true;
-            } else if (c == '"') {
-                inQuotes = !inQuotes;
-            } else if (Character.isWhitespace(c) && !inQuotes) {
-                if (!current.isEmpty()) {
-                    args.add(current.toString());
-                    current.setLength(0);
-                }
-            } else {
-                current.append(c);
+        boolean maySkipPluginName = true;
+        for (ParsedCommandNode<CommandSourceStack> parsedNode : ctx.getNodes()) {
+            CommandNode<?> node = parsedNode.getNode();
+            if (maySkipPluginName && node.getName().equalsIgnoreCase(plugin.getName())) {
+                maySkipPluginName = false;
+                continue;
             }
-        }
-        if (!current.isEmpty()) {
-            args.add(current.toString());
+            maySkipPluginName = false;
+            StringRange range = parsedNode.getRange();
+            args.add(input.substring(range.getStart(), range.getEnd()));
         }
         return args.toArray(new String[0]);
     }

@@ -2,13 +2,13 @@ package com.tty.api.utils;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class PublicFunctionUtils {
@@ -47,9 +47,7 @@ public class PublicFunctionUtils {
     public static Set<String> tabList(String input, Set<String> raw) {
         if (input == null) input = "";
         String finalInput = input;
-        return raw.stream()
-                .filter(s -> s.startsWith(finalInput))
-                .collect(Collectors.toSet());
+        return raw.stream().filter(s -> s.startsWith(finalInput)).collect(Collectors.toUnmodifiableSet());
     }
 
     /**
@@ -80,20 +78,16 @@ public class PublicFunctionUtils {
      * @param value 玩家名字或 UUID
      * @return 玩家 UUID，如果不存在则返回 null
      */
-    public static UUID parseUUID(String value) {
-        AtomicReference<UUID> uuid = new AtomicReference<>(null);
+    public @NotNull
+    static UUID parseUUID(String value) {
+        UUID uuid = null;
         try {
-            uuid.set(UUID.fromString(value));
-        } catch (Exception ignored) {
+            uuid = UUID.fromString(value);
+        } catch (Exception ignored) { }
+        if (uuid == null) {
+            uuid = Bukkit.getServer().getOfflinePlayer(value).getUniqueId();
         }
-        if (uuid.get() == null) {
-            try {
-                uuid.set(Bukkit.getServer().getOfflinePlayer(value).getUniqueId());
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return uuid.get();
+        return uuid;
     }
 
 }

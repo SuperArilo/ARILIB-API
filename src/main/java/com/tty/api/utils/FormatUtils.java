@@ -1,16 +1,11 @@
 package com.tty.api.utils;
-import com.google.gson.Gson;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
-import java.lang.reflect.Type;
 import java.text.DecimalFormat;
-import java.util.List;
 import java.util.Map;
 
 public class FormatUtils {
@@ -23,34 +18,6 @@ public class FormatUtils {
     public static String formatTwoDecimalPlaces(Number number) {
         if (number == null) return "0.00";
         return ThreadLocal.withInitial(() -> new DecimalFormat("0.00")).get().format(number);
-    }
-
-
-    /**
-     * 检查ID名称合法性（字母数字下划线）
-     * @param content 待检查字符串
-     * @return 空值或不符合格式返回false
-     */
-    public static boolean checkIdName(String content) {
-        return content != null && content.matches("^[a-zA-Z0-9_]+$");
-    }
-
-    /**
-     * 检查名称合法性（支持中文字符）
-     * @param content 待检查字符串
-     * @return 空值或不符合格式返回false
-     */
-    public static boolean checkName(String content) {
-        return content != null && content.matches("^[a-zA-Z0-9\\u4e00-\\u9fa5]+$");
-    }
-
-    /**
-     * 验证Minecraft权限节点格式
-     * @param node 权限节点字符串
-     * @return 空值或不符合格式返回false
-     */
-    public static boolean isValidPermissionNode(String node) {
-        return node != null && node.matches("^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$");
     }
 
     /**
@@ -173,24 +140,6 @@ public class FormatUtils {
                 target.set(key, value);
             }
         }
-    }
-
-    /**
-     * 将 yaml 的字符串转换成指定类型
-     * @param raw yaml 字符串
-     * @param type 转换的目标类型
-     * @return 返回 的 type 类型
-     */
-    public static <T> T yamlConvertToObj(String raw, Type type) {
-        LoaderOptions loaderOptions = new LoaderOptions();
-        loaderOptions.setAllowRecursiveKeys(true);
-        loaderOptions.setAllowDuplicateKeys(false);
-        Gson gson = new Gson();
-        Object intermediateObj = new Yaml(loaderOptions).load(raw);
-        if (intermediateObj instanceof Map || intermediateObj instanceof List) {
-            return gson.fromJson(gson.toJson(intermediateObj), type);
-        }
-        return gson.fromJson(gson.toJsonTree(intermediateObj), type);
     }
 
 }

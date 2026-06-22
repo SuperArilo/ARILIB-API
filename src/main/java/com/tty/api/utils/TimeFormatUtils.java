@@ -64,14 +64,6 @@ public class TimeFormatUtils {
     }
 
     /**
-     * 计算两个时间戳之间的时间差并格式化
-     */
-    public static String formatBetween(long startMillis, long endMillis) {
-        long diff = Math.abs(endMillis - startMillis);
-        return format(diff);
-    }
-
-    /**
      * 将毫秒时间戳转换为指定格式的字符串（指定时区）
      * @param timestamp 毫秒时间戳
      * @param pattern 格式模式
@@ -85,13 +77,4 @@ public class TimeFormatUtils {
         return dateTime.format(formatter);
     }
 
-    /**
-     * 将指定格式转成时间戳（毫秒
-     * @param value 传入的值
-     * @param unit 时间单位
-     * @return 时间戳（毫秒
-     */
-    public static long toTimestamp(int value, TimeUnit unit) {
-        return unit.toMillis(value);
-    }
 }

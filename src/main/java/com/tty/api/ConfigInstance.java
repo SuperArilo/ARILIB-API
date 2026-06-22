@@ -10,10 +10,13 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,9 +29,16 @@ public class ConfigInstance {
     private final Map<String, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
+    private final Yaml yaml;
+
+
     public ConfigInstance(AbstractJavaPlugin plugin, FilePathEnum[] pathList) {
         this.plugin = plugin;
         this.pathList = pathList;
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowRecursiveKeys(true);
+        loaderOptions.setAllowDuplicateKeys(false);
+        this.yaml = new Yaml(loaderOptions);
         this.reload();
     }
 
@@ -56,7 +66,7 @@ public class ConfigInstance {
         if (value instanceof MemorySection) {
             YamlConfiguration tempConfig = new YamlConfiguration();
             FormatUtils.copySectionToYamlConfiguration((ConfigurationSection) value, tempConfig);
-            return FormatUtils.yamlConvertToObj(tempConfig.saveToString(), type);
+            return this.yamlConvertToObj(tempConfig.saveToString(), type);
         } else {
             try {
                 return this.gson.fromJson(this.gson.toJsonTree(value), type);
@@ -104,6 +114,14 @@ public class ConfigInstance {
 
     public <T> T deepCopy(T obj, Type typeOfT) {
         return this.gson.fromJson(this.gson.toJson(obj), typeOfT);
+    }
+
+    public <T> T yamlConvertToObj(String rawYamlString, Type type) {
+        Object intermediateObj = this.yaml.load(rawYamlString);
+        if (intermediateObj instanceof Map || intermediateObj instanceof List) {
+            return this.gson.fromJson(this.gson.toJson(intermediateObj), type);
+        }
+        return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
     }
 
     public void setConfig(String name, YamlConfiguration instance) {
