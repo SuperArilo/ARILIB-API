@@ -2,7 +2,6 @@ package com.tty.api.service.placeholder;
 
 import com.google.common.reflect.TypeToken;
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.utils.ComponentUtils;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.ConfigInstance;
 import com.tty.api.service.impl.PlaceholderEngineImpl;
@@ -17,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
 
+    private final AbstractJavaPlugin plugin;
     private final PlaceholderEngineImpl engine;
     @Setter
     private ConfigInstance instance;
@@ -26,6 +26,7 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
 
     public BasePlaceholder(AbstractJavaPlugin plugin, E type) {
         this.instance = plugin.getConfigInstance();
+        this.plugin = plugin;
         this.type = type;
         this.engine = new PlaceholderEngineImpl(plugin);
     }
@@ -35,7 +36,7 @@ public class BasePlaceholder<E extends Enum<E> & FilePathEnum> {
     }
 
     protected CompletableFuture<Component> set(String value) {
-        return CompletableFuture.completedFuture(ComponentUtils.text(value));
+        return CompletableFuture.completedFuture(this.plugin.getComponentTool().text(value));
     }
 
     public CompletableFuture<Component> render(String path, Player player) {

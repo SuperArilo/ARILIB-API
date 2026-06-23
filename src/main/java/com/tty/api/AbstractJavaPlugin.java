@@ -37,6 +37,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Getter
     private NbtManager nbtManager;
 
+    @Getter
+    private ComponentTool componentTool;
+
     @Override
     public void onLoad() {
         this.log = new Log(this);
@@ -51,6 +54,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        this.componentTool = new ComponentTool(this);
         this.executorSync = task -> this.scheduler.run(this, i -> task.run());
         this.executorAsync = task -> this.scheduler.runAsync(this, i -> task.run());
         for (Listener event : this.registerEvents()) {

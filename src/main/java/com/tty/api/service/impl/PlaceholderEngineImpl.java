@@ -1,7 +1,6 @@
 package com.tty.api.service.impl;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.utils.ComponentUtils;
 import com.tty.api.service.placeholder.PlaceholderEngine;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
 import lombok.Getter;
@@ -42,7 +41,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         }
 
         if (futures.isEmpty()) {
-            return CompletableFuture.completedFuture(ComponentUtils.text(template, context, Collections.emptyMap()));
+            return CompletableFuture.completedFuture(this.plugin.getComponentTool().text(template, context, Collections.emptyMap()));
         }
 
         CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
@@ -50,7 +49,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         return CompletableFuture.allOf(all).thenApplyAsync(v -> {
             Map<String, Component> resolved = new HashMap<>(futures.size());
             futures.forEach((k, f) -> resolved.put(k, f.join()));
-            return ComponentUtils.text(template, context, resolved);
+            return this.plugin.getComponentTool().text(template, context, resolved);
         }, this.plugin.getExecutorAsync());
     }
 
@@ -73,7 +72,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         if (futures.isEmpty()) {
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(ComponentUtils.text(line, context, Collections.emptyMap()));
+                components.add(this.plugin.getComponentTool().text(line, context, Collections.emptyMap()));
             }
             return CompletableFuture.completedFuture(Component.join(JoinConfiguration.separator(Component.newline()), components));
         }
@@ -85,7 +84,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             futures.forEach((k, f) -> resolved.put(k, f.join()));
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(ComponentUtils.text(line, context, resolved));
+                components.add(this.plugin.getComponentTool().text(line, context, resolved));
             }
             return Component.join(JoinConfiguration.separator(Component.newline()), components);
         }, this.plugin.getExecutorAsync());

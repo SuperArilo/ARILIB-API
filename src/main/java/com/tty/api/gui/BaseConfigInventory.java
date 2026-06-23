@@ -7,7 +7,6 @@ import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.NbtGuiValue;
-import com.tty.api.utils.ComponentUtils;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -45,7 +44,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     @Override
     protected @NotNull Component title() {
         String title = this.config().getTitle();
-        return ComponentUtils.text(title, this.offlinePlayer);
+        return this.getPlugin().getComponentTool().text(title, this.offlinePlayer);
     }
 
     @Override
@@ -99,14 +98,14 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mask = this.config().getMask();
         }
         if (mask == null) return;
-        List<TextComponent> collect = mask.getLore().stream().map(ComponentUtils::text).toList();
+        List<TextComponent> collect = mask.getLore().stream().map(i -> this.getPlugin().getComponentTool().text(i)).toList();
 
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
             this.getPlugin().getNbtManager().setNbt(NbtGuiValue.GUI_MASK_ICON, itemStack, PersistentDataType.STRING, FunctionType.MASK_ICON.getName());
 
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(ComponentUtils.text(mask.getName(), this.getOfflinePlayer()));
+            itemMeta.displayName(this.getPlugin().getComponentTool().text(mask.getName(), this.getOfflinePlayer()));
             itemMeta.lore(collect);
             itemStack.setItemMeta(itemMeta);
             this.getInventory().setItem(i, itemStack);
@@ -130,9 +129,9 @@ public abstract class BaseConfigInventory extends BaseInventory {
                 ItemMeta mo = o.getItemMeta();
                 String name = value.getName();
                 if (name != null) {
-                    mo.displayName(ComponentUtils.text(name, this.getOfflinePlayer()));
+                    mo.displayName(this.getPlugin().getComponentTool().text(name, this.getOfflinePlayer()));
                 }
-                mo.lore(value.getLore().stream().map(i -> ComponentUtils.text(i, this.getOfflinePlayer())).toList());
+                mo.lore(value.getLore().stream().map(i -> this.getPlugin().getComponentTool().text(i, this.getOfflinePlayer())).toList());
                 o.setItemMeta(mo);
                 for (Integer integer : value.getSlot()) {
                     this.getInventory().setItem(integer, o);
