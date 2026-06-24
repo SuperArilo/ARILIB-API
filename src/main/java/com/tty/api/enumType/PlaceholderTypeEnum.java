@@ -1,5 +1,5 @@
 package com.tty.api.enumType;
 
-public interface LangTypeEnum {
+public interface PlaceholderTypeEnum {
     String getType();
 }

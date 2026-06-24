@@ -1,6 +1,6 @@
 package com.tty.api.service.impl;
 
-import com.tty.api.enumType.LangTypeEnum;
+import com.tty.api.enumType.PlaceholderTypeEnum;
 import com.tty.api.service.placeholder.PlaceholderResolve;
 import com.tty.api.service.placeholder.PlaceholderDefinition;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
@@ -15,7 +15,7 @@ public class PlaceholderRegistryImpl implements PlaceholderRegistry {
     private final Map<String, PlaceholderResolve> placeholders = new HashMap<>();
 
     @Override
-    public void register(PlaceholderDefinition<? extends LangTypeEnum> definition) {
+    public void register(PlaceholderDefinition<? extends PlaceholderTypeEnum> definition) {
         String key = definition.key().getType();
         if (this.placeholders.containsKey(key)) {
             throw new IllegalStateException("Duplicate placeholder: " + key);
