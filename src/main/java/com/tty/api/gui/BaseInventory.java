@@ -68,23 +68,37 @@ public abstract class BaseInventory implements InventoryHolder {
     }
 
     public void close() {
-        CompletableFuture.supplyAsync(() -> {
+        if (!plugin.isEnabled()) {
             try {
                 this.onClose();
-                this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
-                return true;
+                plugin.getLog().debug("inventory {} has been cleaned (sync).", this.getType());
             } catch (Exception e) {
-                return false;
+                plugin.getLog().error(e);
+            } finally {
+                synchronized (lock) {
+                    inventory = null;
+                    plugin = null;
+                }
             }
-        }, this.plugin.getExecutorAsync()).whenCompleteAsync((i, ex) -> {
-            if (ex != null) {
-                this.plugin.getLog().error(ex);
-            }
-            synchronized (this.lock) {
-                this.inventory = null;
-                this.plugin = null;
-            }
-        }, this.plugin.getExecutorSync());
+        } else {
+            CompletableFuture.supplyAsync(() -> {
+                try {
+                    this.onClose();
+                    this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
+                    return true;
+                } catch (Exception e) {
+                    return false;
+                }
+            }, this.plugin.getExecutorAsync()).whenCompleteAsync((i, ex) -> {
+                if (ex != null) {
+                    this.plugin.getLog().error(ex);
+                }
+                synchronized (this.lock) {
+                    this.inventory = null;
+                    this.plugin = null;
+                }
+            }, this.plugin.getExecutorSync());
+        }
     }
 
     protected AbstractJavaPlugin getPlugin() {
