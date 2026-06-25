@@ -40,11 +40,11 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
 
     protected abstract @NotNull Component disableInGame();
 
-    protected abstract boolean isDisabledInGame();
+    protected abstract boolean isEnableInGame();
 
     protected int preExecute(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSender sender = ctx.getSource().getSender();
-        if (this.isDisabledInGame()) {
+        if (!this.isEnableInGame()) {
             throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.disableInGame())).create();
         }
 
