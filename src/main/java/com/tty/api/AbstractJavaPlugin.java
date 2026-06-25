@@ -5,14 +5,18 @@ import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public abstract class AbstractJavaPlugin extends JavaPlugin {
 
@@ -43,7 +47,6 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Override
     public void onLoad() {
         this.log = new Log(this);
-        this.doReloadAllFiles();
         this.loading();
     }
 
@@ -54,6 +57,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        this.doReloadAllFiles(null);
+
         this.componentTool = new ComponentTool(this);
         this.executorSync = task -> this.scheduler.run(this, i -> task.run());
         this.executorAsync = task -> this.scheduler.runAsync(this, i -> task.run());
@@ -120,15 +125,24 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
      */
     @NotNull protected abstract FilePathEnum[] fileList();
 
-    public void doReloadAllFiles() {
+    @Nullable protected abstract FilePathEnum[] langFiles();
+
+    public void doReloadAllFiles(@Nullable CommandSender sender) {
         this.saveDefaultConfig();
         this.reloadConfig();
         this.debug = this.getConfig().getBoolean("debug.enable", false);
         this.log.setDebug(this.debug);
-        if(this.configInstance != null) {
-            this.configInstance.clearConfigs();
+        FilePathEnum[] fileArray = fileList();
+        FilePathEnum[] langArray = langFiles();
+
+        FilePathEnum[] array = Stream.concat(Arrays.stream(fileArray), langArray == null ? Stream.empty() : Arrays.stream(langArray)).toArray(FilePathEnum[]::new);
+
+        if(this.configInstance == null) {
+            this.configInstance = new ConfigInstance(this);
         }
-        this.configInstance = new ConfigInstance(this, this.fileList());
+        this.configInstance.reload(array, sender);
+
+
     }
 
 }

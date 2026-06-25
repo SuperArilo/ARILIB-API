@@ -3,35 +3,24 @@ package com.tty.api.event;
 import com.tty.api.AbstractJavaPlugin;
 import lombok.Getter;
 import org.bukkit.command.CommandSender;
-import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class CustomPluginReloadEvent extends Event implements Cancellable {
+public class OnPluginConfigReloadedEvent extends Event {
+
     @Getter
     private final static HandlerList handlerList = new HandlerList();
-    private boolean isCancelled = false;
-    @Getter
-    @NotNull
-    private final CommandSender sender;
+
     @Getter
     private final AbstractJavaPlugin plugin;
+    @Getter
+    private final CommandSender sender;
 
-    public CustomPluginReloadEvent(AbstractJavaPlugin plugin, @NotNull CommandSender sender) {
+    public OnPluginConfigReloadedEvent(AbstractJavaPlugin plugin, @Nullable CommandSender sender) {
         this.plugin = plugin;
         this.sender = sender;
-    }
-
-    @Override
-    public boolean isCancelled() {
-        return isCancelled;
-    }
-
-    @Override
-    public void setCancelled(boolean b) {
-        this.isCancelled = b;
     }
 
     @Override
