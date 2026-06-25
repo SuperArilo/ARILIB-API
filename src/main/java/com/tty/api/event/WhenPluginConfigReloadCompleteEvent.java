@@ -8,7 +8,7 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class OnPluginConfigReloadedEvent extends Event {
+public class WhenPluginConfigReloadCompleteEvent extends Event {
 
     @Getter
     private final static HandlerList handlerList = new HandlerList();
@@ -18,7 +18,7 @@ public class OnPluginConfigReloadedEvent extends Event {
     @Getter
     private final CommandSender sender;
 
-    public OnPluginConfigReloadedEvent(AbstractJavaPlugin plugin, @Nullable CommandSender sender) {
+    public WhenPluginConfigReloadCompleteEvent(AbstractJavaPlugin plugin, @Nullable CommandSender sender) {
         this.plugin = plugin;
         this.sender = sender;
     }

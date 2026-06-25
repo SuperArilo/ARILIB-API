@@ -8,7 +8,7 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class CustomPluginReloadEvent extends Event implements Cancellable {
+public class WhenPluginExecuteReloadCommandEvent extends Event implements Cancellable {
     @Getter
     private final static HandlerList handlerList = new HandlerList();
     private boolean isCancelled = false;
@@ -18,7 +18,7 @@ public class CustomPluginReloadEvent extends Event implements Cancellable {
     @Getter
     private final AbstractJavaPlugin plugin;
 
-    public CustomPluginReloadEvent(AbstractJavaPlugin plugin, @NotNull CommandSender sender) {
+    public WhenPluginExecuteReloadCommandEvent(AbstractJavaPlugin plugin, @NotNull CommandSender sender) {
         this.plugin = plugin;
         this.sender = sender;
     }

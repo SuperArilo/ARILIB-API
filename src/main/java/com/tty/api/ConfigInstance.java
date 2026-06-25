@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.tty.api.enumType.FilePathEnum;
-import com.tty.api.event.OnPluginConfigReloadedEvent;
+import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
 import com.tty.api.utils.FormatUtils;
 import okhttp3.*;
 import org.bukkit.Bukkit;
@@ -156,7 +156,7 @@ public class ConfigInstance {
         Runnable onAllComplete = () -> {
             if (pending.decrementAndGet() == 0 && loopDone.get()) {
                 this.plugin.getScheduler().run(this.plugin, i ->
-                        Bukkit.getPluginManager().callEvent(new OnPluginConfigReloadedEvent(this.plugin, sender)));
+                        Bukkit.getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
             }
         };
 
@@ -197,7 +197,7 @@ public class ConfigInstance {
         loopDone.set(true);
         if (pending.get() == 0) {
             this.plugin.getScheduler().run(this.plugin, i ->
-                    Bukkit.getPluginManager().callEvent(new OnPluginConfigReloadedEvent(this.plugin, sender)));
+                    Bukkit.getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
         }
     }
 
