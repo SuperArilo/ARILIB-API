@@ -119,8 +119,7 @@ public class ConfigInstance {
             }
             configuration.set(path + "." + k, valueToSave);
         });
-
-        this.setConfig(filePath, configuration);
+        this.configs.put(filePath, configuration);
         configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
     }
 
@@ -134,10 +133,6 @@ public class ConfigInstance {
             return this.gson.fromJson(this.gson.toJson(intermediateObj), type);
         }
         return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
-    }
-
-    public void setConfig(FilePathEnum pathEnum, YamlConfiguration instance) {
-        this.configs.put(pathEnum, instance);
     }
 
     public synchronized void saveAllFiles() {
@@ -230,7 +225,7 @@ public class ConfigInstance {
     }
 
     private synchronized void loadAndSet(FilePathEnum pathEnum, File file) {
-        this.setConfig(pathEnum, YamlConfiguration.loadConfiguration(file));
+        this.configs.put(pathEnum, YamlConfiguration.loadConfiguration(file));
     }
 
     public void downloadFile(String url, File targetFile, @Nullable Runnable onSuccess, @Nullable Runnable onError) {
