@@ -6,7 +6,6 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
-import com.tty.api.utils.FormatUtils;
 import okhttp3.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -25,14 +24,13 @@ import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
 
 public class ConfigInstance {
 
@@ -43,7 +41,7 @@ public class ConfigInstance {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
 
-    private static final String DOWNLOAD_URL = "https://raw.githubusercontent.com/SuperArilo/Plugin-Lang/refs/heads/main/";
+    private static final String DOWNLOAD_URL = "https://raw.githubusercontent.com/SuperArilo/Plugin-Configs/refs/heads/main/";
 
     private final Map<String, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
@@ -52,37 +50,31 @@ public class ConfigInstance {
 
     public ConfigInstance(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
-
         LoaderOptions loaderOptions = new LoaderOptions();
         loaderOptions.setAllowRecursiveKeys(true);
         loaderOptions.setAllowDuplicateKeys(false);
         this.options = loaderOptions;
     }
 
-    public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Type type, T defaultValue) throws JsonSyntaxException {
+    public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Type type, T defaultValue) {
         if (this.checkPath(keyPath)) return defaultValue;
-
         YamlConfiguration fileConfiguration = this.getObject(filePath.name());
         if (fileConfiguration == null) return defaultValue;
+        Object value = fileConfiguration.get(keyPath);
+        if (value == null) return defaultValue;
 
-        Object value = fileConfiguration.get(keyPath, defaultValue);
-
-        if (value == null) return null;
-
-        if (value instanceof MemorySection) {
-            YamlConfiguration tempConfig = new YamlConfiguration();
-            FormatUtils.copySectionToYamlConfiguration((ConfigurationSection) value, tempConfig);
-            return this.yamlConvertToObj(tempConfig.saveToString(), type);
-        } else {
-            try {
+        try {
+            if (value instanceof MemorySection section) {
+                return this.gson.fromJson(this.gson.toJson(this.sectionToMap(section)), type);
+            } else {
                 return this.gson.fromJson(this.gson.toJsonTree(value), type);
-            } catch (Exception e) {
-                this.plugin.getLog().warn(e, "config conversion failed at path {}. Value type: {}, Value: {}, target type: {}",
-                        keyPath,
-                        value.getClass().getName(),
-                        value,
-                        type.getTypeName());
             }
+        } catch (Exception e) {
+            this.plugin.getLog().warn(e, "config conversion failed at path {}. Value type: {}, Value: {}, target type: {}",
+                    keyPath,
+                    value.getClass().getName(),
+                    value,
+                    type.getTypeName());
         }
         return defaultValue;
     }
@@ -92,10 +84,14 @@ public class ConfigInstance {
     }
 
     public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Class<T> tClass) {
-        if (this.checkPath(keyPath)) return null;
+        return this.getValue(keyPath, filePath, tClass, null);
+    }
+
+    public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Class<T> tClass, T defaultValue) {
+        if (this.checkPath(keyPath)) return defaultValue;
         YamlConfiguration configuration = this.getObject(filePath.name());
-        if (configuration == null) return null;
-        return configuration.getObject(keyPath, tClass);
+        if (configuration == null) return defaultValue;
+        return configuration.getObject(keyPath, tClass, defaultValue);
     }
 
     public YamlConfiguration getObject(String fileName) {
@@ -107,7 +103,6 @@ public class ConfigInstance {
     }
 
     public <T extends Enum<T> & FilePathEnum, S> void setValue(String path, T filePath, Map<String, S> values) throws IOException {
-
         YamlConfiguration configuration = this.getObject(filePath.name());
         if (configuration == null) throw new NullPointerException("Config file not found: " + filePath.name());
 
@@ -152,50 +147,72 @@ public class ConfigInstance {
     public void reload(FilePathEnum[] pathList, @Nullable CommandSender sender) {
         this.clearConfigs();
         String langType = this.plugin.getConfig().getString("lang", "cn");
-        AtomicInteger pending = new AtomicInteger(0);
-        AtomicBoolean loopDone = new AtomicBoolean(false);
-        Runnable onAllComplete = () -> {
-            if (pending.decrementAndGet() == 0 && loopDone.get()) {
-                this.plugin.getScheduler().run(this.plugin, i ->
-                        Bukkit.getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
+
+        if (sender == null) {
+            for (FilePathEnum pathEnum : pathList) {
+                String path = pathEnum.getPath().replace("[lang]", langType);
+                File file = new File(this.plugin.getDataFolder(), path);
+                if (file.exists() && !this.plugin.getConfig().getBoolean("debug.overwrite-file", false)) {
+                    this.loadAndSet(pathEnum, file);
+                    continue;
+                }
+                try {
+                    this.plugin.saveResource(path, true);
+                    this.loadAndSet(pathEnum, file);
+                } catch (Exception ex) {
+                    String url = DOWNLOAD_URL + this.plugin.getName() + "/" + Arrays.stream(path.split("/")).map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8)).collect(Collectors.joining("/"));
+                    this.downloadFileSync(url, file, pathEnum);
+                }
             }
-        };
+            if (this.plugin.isEnabled()) {
+                Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, null));
+            }
+            return;
+        }
+
+        AtomicInteger pendingDownloads = new AtomicInteger(0);
+        boolean hasDownloads = false;
 
         for (FilePathEnum pathEnum : pathList) {
             String path = pathEnum.getPath().replace("[lang]", langType);
             File file = new File(this.plugin.getDataFolder(), path);
 
-            boolean exists = file.exists();
-            boolean overwrite = this.plugin.getConfig().getBoolean("debug.overwrite-file", false);
-
-            if (!exists || overwrite) {
-                try {
-                    this.plugin.saveResource(path, true);
-                    this.loadAndSet(pathEnum, file);
-                } catch (Exception e) {
-                    pending.incrementAndGet();
-                    this.plugin.getLog().info("start download file {}", path);
-
-                    String url = DOWNLOAD_URL + this.plugin.getName() + "/" + Arrays.stream(path.split("/")).map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8)).collect(Collectors.joining("/"));;
-                    File langTargetFile = new File(this.plugin.getDataFolder(), path);
-                    this.downloadFile(url, langTargetFile,
-                            () -> {
-                                this.loadAndSet(pathEnum, langTargetFile);
-                                onAllComplete.run();
-                            },
-                            () -> {
-                                this.plugin.getLog().warn("could not download lang file {}.", path);
-                                onAllComplete.run();
-                            });
-                }
-            } else {
+            if (file.exists() && !this.plugin.getConfig().getBoolean("debug.overwrite-file", false)) {
                 this.loadAndSet(pathEnum, file);
+                continue;
+            }
+
+            try {
+                this.plugin.saveResource(path, true);
+                this.loadAndSet(pathEnum, file);
+            } catch (Exception ex) {
+                hasDownloads = true;
+                pendingDownloads.incrementAndGet();
+
+                String url = DOWNLOAD_URL + this.plugin.getName() + "/" + Arrays.stream(path.split("/")).map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8)).collect(Collectors.joining("/"));
+                File target = new File(this.plugin.getDataFolder(), path);
+
+                this.downloadFile(url, target,
+                        () -> {
+                            this.loadAndSet(pathEnum, target);
+                            this.onDownloadComplete(pendingDownloads, sender);
+                        },
+                        () -> {
+                            this.plugin.getLog().warn("could not download file: {}", path);
+                            this.onDownloadComplete(pendingDownloads, sender);
+                        }
+                );
             }
         }
-        loopDone.set(true);
-        if (pending.get() == 0) {
-            this.plugin.getScheduler().run(this.plugin, i ->
-                    Bukkit.getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
+
+        if (!hasDownloads && this.plugin.isEnabled()) {
+            this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
+        }
+    }
+
+    private void onDownloadComplete(AtomicInteger counter, @Nullable CommandSender sender) {
+        if (counter.decrementAndGet() == 0 && this.plugin.isEnabled()) {
+            this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
         }
     }
 
@@ -204,12 +221,11 @@ public class ConfigInstance {
     }
 
     public void downloadFile(String url, File targetFile, @Nullable Runnable onSuccess, @Nullable Runnable onError) {
-        AbstractJavaPlugin javaPlugin = this.plugin;
         Request request = new Request.Builder().header("User-Agent", "PaperMC-Plugin").url(url).build();
         this.client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                javaPlugin.getLog().warn(e,"download file error. url: {} ", url);
+                plugin.getLog().warn(e, "download file error, url: {}. you can execute command /{} reload to download again.", url, plugin.getName());
                 if (onError != null) {
                     onError.run();
                 }
@@ -219,7 +235,7 @@ public class ConfigInstance {
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 try (response) {
                     if (!response.isSuccessful()) {
-                        javaPlugin.getLog().warn("download file error. code: {}", response.code());
+                        plugin.getLog().warn("download file error, code: {}. you can execute command /{} reload to download again.", response.code(), plugin.getName());
                         if (onError != null) onError.run();
                         return;
                     }
@@ -227,14 +243,49 @@ public class ConfigInstance {
                     try (FileOutputStream fos = new FileOutputStream(targetFile)) {
                         fos.write(response.body().bytes());
                     }
-                    javaPlugin.getLog().debug("file save to {}", targetFile.getPath());
+                    plugin.getLog().debug("file save to {}", targetFile.getPath());
                     if (onSuccess != null) onSuccess.run();
                 } catch (IOException e) {
-                    javaPlugin.getLog().warn(e, "file save error. path: {}", targetFile.getPath());
+                    plugin.getLog().warn(e, "file save error. path: {}", targetFile.getPath());
                     if (onError != null) onError.run();
                 }
             }
         });
+    }
+
+    private void downloadFileSync(String url, File targetFile, FilePathEnum pathEnum) {
+        Request request = new Request.Builder()
+                .header("User-Agent", "PaperMC-Plugin")
+                .url(url)
+                .build();
+        this.plugin.getLog().info("start download file, url: {}", url);
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                this.plugin.getLog().warn("download file error. code: {}", response.code());
+                return;
+            }
+            targetFile.getParentFile().mkdirs();
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                fos.write(response.body().bytes());
+            }
+            this.plugin.getLog().debug("file save to {}", targetFile.getPath());
+            this.loadAndSet(pathEnum, targetFile);
+        } catch (IOException e) {
+            this.plugin.getLog().warn(e, "file download/save error, url: {}. you can execute command /{} reload to download again." , url, this.plugin.getName());
+        }
+    }
+
+    private Map<String, Object> sectionToMap(ConfigurationSection section) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            Object value = section.get(key);
+            if (value instanceof ConfigurationSection) {
+                result.put(key, sectionToMap((ConfigurationSection) value));
+            } else {
+                result.put(key, value);
+            }
+        }
+        return result;
     }
 
 }

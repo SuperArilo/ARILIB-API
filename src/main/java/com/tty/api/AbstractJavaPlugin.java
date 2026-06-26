@@ -62,6 +62,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.componentTool = new ComponentTool(this);
         this.executorSync = task -> this.scheduler.run(this, i -> task.run());
         this.executorAsync = task -> this.scheduler.runAsync(this, i -> task.run());
+
         for (Listener event : this.registerEvents()) {
             Bukkit.getPluginManager().registerEvents(event, this);
         }
@@ -141,7 +142,6 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.configInstance = new ConfigInstance(this);
         }
         this.configInstance.reload(array, sender);
-
 
     }
 
