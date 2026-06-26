@@ -88,7 +88,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (this.configInstance != null) {
-            this.configInstance.clearConfigs();
+            this.configInstance.saveAllFiles();
         }
         this.disabling();
     }

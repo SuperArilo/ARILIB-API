@@ -43,7 +43,7 @@ public class ConfigInstance {
 
     private static final String DOWNLOAD_URL = "https://raw.githubusercontent.com/SuperArilo/Plugin-Configs/refs/heads/main/";
 
-    private final Map<String, YamlConfiguration> configs = new ConcurrentHashMap<>();
+    private final Map<FilePathEnum, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
 
     private final LoaderOptions options;
@@ -58,11 +58,10 @@ public class ConfigInstance {
 
     public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Type type, T defaultValue) {
         if (this.checkPath(keyPath)) return defaultValue;
-        YamlConfiguration fileConfiguration = this.getObject(filePath.name());
+        YamlConfiguration fileConfiguration = this.getObject(filePath);
         if (fileConfiguration == null) return defaultValue;
         Object value = fileConfiguration.get(keyPath);
         if (value == null) return defaultValue;
-
         try {
             if (value instanceof MemorySection section) {
                 return this.gson.fromJson(this.gson.toJson(this.sectionToMap(section)), type);
@@ -87,15 +86,16 @@ public class ConfigInstance {
         return this.getValue(keyPath, filePath, tClass, null);
     }
 
+    //只能传简单的基元
     public <T, E extends Enum<E> & FilePathEnum> T getValue(String keyPath, E filePath, Class<T> tClass, T defaultValue) {
         if (this.checkPath(keyPath)) return defaultValue;
-        YamlConfiguration configuration = this.getObject(filePath.name());
+        YamlConfiguration configuration = this.getObject(filePath);
         if (configuration == null) return defaultValue;
         return configuration.getObject(keyPath, tClass, defaultValue);
     }
 
-    public YamlConfiguration getObject(String fileName) {
-        return this.configs.get(fileName);
+    public YamlConfiguration getObject(FilePathEnum pathEnum) {
+        return this.configs.get(pathEnum);
     }
 
     private boolean checkPath(String path) {
@@ -103,7 +103,7 @@ public class ConfigInstance {
     }
 
     public <T extends Enum<T> & FilePathEnum, S> void setValue(String path, T filePath, Map<String, S> values) throws IOException {
-        YamlConfiguration configuration = this.getObject(filePath.name());
+        YamlConfiguration configuration = this.getObject(filePath);
         if (configuration == null) throw new NullPointerException("Config file not found: " + filePath.name());
 
         values.forEach((k, v) -> {
@@ -120,7 +120,7 @@ public class ConfigInstance {
             configuration.set(path + "." + k, valueToSave);
         });
 
-        this.setConfig(filePath.name(), configuration);
+        this.setConfig(filePath, configuration);
         configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
     }
 
@@ -136,18 +136,30 @@ public class ConfigInstance {
         return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
     }
 
-    public void setConfig(String name, YamlConfiguration instance) {
-        this.configs.put(name, instance);
+    public void setConfig(FilePathEnum pathEnum, YamlConfiguration instance) {
+        this.configs.put(pathEnum, instance);
     }
 
-    public void clearConfigs() {
+    public synchronized void saveAllFiles() {
+        String langType = this.plugin.getConfig().getString("lang", "cn");
+        this.configs.forEach((k, v) -> {
+            File file = new File(this.plugin.getDataFolder(), k.getPath().replace("[lang]", langType));
+            if (file.exists()) return;
+            try {
+                v.save(file);
+            } catch (IOException e) {
+                this.plugin.getLog().error(e);
+            }
+        });
+        this.clearConfigs();
+    }
+
+    public synchronized void clearConfigs() {
         this.configs.clear();
     }
 
-    public void reload(FilePathEnum[] pathList, @Nullable CommandSender sender) {
-        this.clearConfigs();
+    public synchronized void reload(FilePathEnum[] pathList, @Nullable CommandSender sender) {
         String langType = this.plugin.getConfig().getString("lang", "cn");
-
         if (sender == null) {
             for (FilePathEnum pathEnum : pathList) {
                 String path = pathEnum.getPath().replace("[lang]", langType);
@@ -170,6 +182,7 @@ public class ConfigInstance {
             return;
         }
 
+        this.clearConfigs();
         AtomicInteger pendingDownloads = new AtomicInteger(0);
         boolean hasDownloads = false;
 
@@ -217,7 +230,7 @@ public class ConfigInstance {
     }
 
     private synchronized void loadAndSet(FilePathEnum pathEnum, File file) {
-        this.setConfig(pathEnum.name(), YamlConfiguration.loadConfiguration(file));
+        this.setConfig(pathEnum, YamlConfiguration.loadConfiguration(file));
     }
 
     public void downloadFile(String url, File targetFile, @Nullable Runnable onSuccess, @Nullable Runnable onError) {
