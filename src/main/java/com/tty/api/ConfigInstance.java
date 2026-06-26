@@ -172,7 +172,7 @@ public class ConfigInstance {
                 }
             }
             if (this.plugin.isEnabled()) {
-                Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, null));
+                this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, null)));
             }
             return;
         }
