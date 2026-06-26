@@ -74,10 +74,6 @@ public abstract class BaseInventory implements InventoryHolder {
                 plugin.getLog().debug("inventory {} has been cleaned (sync).", this.getType());
             } catch (Exception e) {
                 plugin.getLog().error(e);
-            } finally {
-                synchronized (lock) {
-                    inventory = null;
-                }
             }
         } else {
             CompletableFuture.supplyAsync(() -> {
@@ -91,9 +87,6 @@ public abstract class BaseInventory implements InventoryHolder {
             }, this.plugin.getExecutorAsync()).whenCompleteAsync((i, ex) -> {
                 if (ex != null) {
                     this.plugin.getLog().error(ex);
-                }
-                synchronized (this.lock) {
-                    this.inventory = null;
                 }
             }, this.plugin.getExecutorSync());
         }
