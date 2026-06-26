@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -173,12 +174,9 @@ public class ConfigInstance {
                     this.loadAndSet(pathEnum, file);
                 } catch (Exception e) {
                     pending.incrementAndGet();
-                    this.plugin.getLog().info("could not find file {}, start download.", path);
-                    String[] segments = path.split("/");
-                    String encodedPath = java.util.Arrays.stream(segments)
-                            .map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8))
-                            .collect(Collectors.joining("/"));
-                    String url = DOWNLOAD_URL + this.plugin.getName() + "/" + encodedPath;
+                    this.plugin.getLog().info("start download file {}", path);
+
+                    String url = DOWNLOAD_URL + this.plugin.getName() + "/" + Arrays.stream(path.split("/")).map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8)).collect(Collectors.joining("/"));;
                     File langTargetFile = new File(this.plugin.getDataFolder(), path);
                     this.downloadFile(url, langTargetFile,
                             () -> {
