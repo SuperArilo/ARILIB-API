@@ -156,15 +156,15 @@ public abstract class StateService<T extends State> {
         }
     }
 
-    public boolean removeState(T state) {
+    public void stopState(T state) {
         synchronized (this.stateList) {
-            return this.stateList.remove(state);
+            state.setOver(true);
         }
     }
 
-    public boolean removeStateByOwner(Entity owner) {
+    public void stopStateByOwner(Entity owner) {
         synchronized (this.stateList) {
-            return this.stateList.removeIf(i -> i.getOwner().equals(owner));
+            this.stateList.stream().filter(i -> i.getOwner().equals(owner)).forEach(i -> i.setOver(true));
         }
     }
 

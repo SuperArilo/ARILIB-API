@@ -14,7 +14,7 @@ public abstract class BaseInventory implements InventoryHolder {
 
     private final Object lock = new Object();
 
-    private AbstractJavaPlugin plugin;
+    private final AbstractJavaPlugin plugin;
     private volatile Inventory inventory;
 
     protected BaseInventory(AbstractJavaPlugin plugin) {
@@ -77,7 +77,6 @@ public abstract class BaseInventory implements InventoryHolder {
             } finally {
                 synchronized (lock) {
                     inventory = null;
-                    plugin = null;
                 }
             }
         } else {
@@ -95,7 +94,6 @@ public abstract class BaseInventory implements InventoryHolder {
                 }
                 synchronized (this.lock) {
                     this.inventory = null;
-                    this.plugin = null;
                 }
             }, this.plugin.getExecutorSync());
         }
