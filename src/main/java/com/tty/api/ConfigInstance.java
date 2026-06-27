@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.tty.api.enumType.FilePathEnum;
 import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
+import com.tty.api.event.WhenPluginConfigUpdateEvent;
 import okhttp3.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -102,7 +103,7 @@ public class ConfigInstance {
         return path == null || path.isEmpty();
     }
 
-    public <T extends Enum<T> & FilePathEnum, S> void setValue(String path, T filePath, Map<String, S> values) throws IOException {
+    public <T extends Enum<T> & FilePathEnum, S> void setValue(String path, T filePath, Map<String, S> values) {
         YamlConfiguration configuration = this.getObject(filePath);
         if (configuration == null) throw new NullPointerException("Config file not found: " + filePath.name());
 
@@ -120,7 +121,12 @@ public class ConfigInstance {
             configuration.set(path + "." + k, valueToSave);
         });
         this.configs.put(filePath, configuration);
-        configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
+        try {
+            configuration.save(new File(plugin.getDataFolder(), filePath.getPath()));
+            this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigUpdateEvent(this.plugin, configuration)));
+        } catch (Exception e) {
+            this.plugin.getLog().error(e, "save file {} error, key path {}.", filePath.getPath(), path);
+        }
     }
 
     public <T> T deepCopy(T obj, Type typeOfT) {
