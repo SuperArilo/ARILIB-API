@@ -42,7 +42,7 @@ public class ConfigInstance {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
 
-    private static final String DOWNLOAD_URL = "https://raw.githubusercontent.com/SuperArilo/Plugin-Configs/refs/heads/main/";
+    private static final String DOWNLOAD_URL = "https://raw.githubusercontent.com/SuperArilo/Plugin-Configs/main/";
 
     private final Map<FilePathEnum, YamlConfiguration> configs = new ConcurrentHashMap<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create();
