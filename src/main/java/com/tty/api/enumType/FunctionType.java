@@ -27,7 +27,8 @@ public enum FunctionType {
     PLAYER_CHESTPLATE("player_chestplate"),
     PLAYER_LEGGINGS("player_leggings"),
     PLAYER_BOOTS("player_boots"),
-    PLAYER_OFF_HAND("player_off_hand");
+    PLAYER_OFF_HAND("player_off_hand"),
+    PLAYER_EXPERIENCE("player_experience");
 
     private final String name;
 

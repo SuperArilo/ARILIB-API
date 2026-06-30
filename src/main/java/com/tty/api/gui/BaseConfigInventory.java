@@ -6,6 +6,7 @@ import com.tty.api.dto.gui.BaseMenu;
 import com.tty.api.dto.gui.FunctionItems;
 import com.tty.api.dto.gui.Mask;
 import com.tty.api.enumType.FunctionType;
+import com.tty.api.enumType.IconKeyType;
 import com.tty.api.enumType.NbtGuiValue;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
@@ -76,7 +77,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
         }, this.getPlugin().getExecutorSync())
         .thenAcceptAsync(Void -> this.whenRenderComplete(inventory), this.getPlugin().getExecutorAsync())
         .exceptionallyAsync(throwable -> {
-            this.getPlugin().getLog().warn("GUI async render failed", throwable);
+            this.getPlugin().getLog().warn(throwable, "GUI async render failed");
             this.getInventory().close();
             return null;
         }, this.getPlugin().getExecutorSync());
@@ -148,15 +149,14 @@ public abstract class BaseConfigInventory extends BaseInventory {
         this.getPlugin().getLog().debug("render function item time: {} ms. type: {}", (System.currentTimeMillis() - l), this.getType());
     }
 
-    protected String replaceKey(String content, Map<String, String> map) {
+    protected String replaceKey(String content, Map<IconKeyType, String> map) {
 
         if (content == null || map == null || map.isEmpty()) return content;
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(content);
         StringBuilder sb = new StringBuilder();
 
         while (matcher.find()) {
-            String key = matcher.group(1);
-            String replacement = map.get(key);
+            String replacement = map.get(IconKeyType.fromKey(matcher.group(1)));
             if (replacement != null) {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
             } else {

@@ -77,13 +77,9 @@ public abstract class BaseInventory implements InventoryHolder {
             }
         } else {
             CompletableFuture.supplyAsync(() -> {
-                try {
-                    this.onClose();
-                    this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
-                    return true;
-                } catch (Exception e) {
-                    return false;
-                }
+                this.onClose();
+                this.plugin.getLog().debug("inventory {} has been cleaned.", this.getType());
+                return true;
             }, this.plugin.getExecutorAsync()).whenCompleteAsync((i, ex) -> {
                 if (ex != null) {
                     this.plugin.getLog().error(ex);
