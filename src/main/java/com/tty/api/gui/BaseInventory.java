@@ -71,6 +71,7 @@ public abstract class BaseInventory implements InventoryHolder {
         if (!plugin.isEnabled()) {
             try {
                 this.onClose();
+                this.getInventory().close();
                 this.plugin.getLog().debug("inventory {} has been cleaned (sync).", this.getType());
             } catch (Exception e) {
                 this.plugin.getLog().error(e);
@@ -84,6 +85,7 @@ public abstract class BaseInventory implements InventoryHolder {
                 if (ex != null) {
                     this.plugin.getLog().error(ex);
                 }
+                this.getInventory().close();
             }, this.plugin.getExecutorSync());
         }
     }
