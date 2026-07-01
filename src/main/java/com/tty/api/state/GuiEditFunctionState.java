@@ -5,7 +5,7 @@ import com.tty.api.enumType.GuiKeyEnum;
 import lombok.Getter;
 import org.bukkit.entity.Entity;
 
-public class EditGuiState<T> extends State {
+public class GuiEditFunctionState<T> extends State {
 
     @Getter
     private final T data;
@@ -14,7 +14,7 @@ public class EditGuiState<T> extends State {
     @Getter
     private final GuiKeyEnum type;
 
-    public EditGuiState(Entity owner, int count, T data, FunctionType functionType, GuiKeyEnum type) {
+    public GuiEditFunctionState(Entity owner, int count, T data, FunctionType functionType, GuiKeyEnum type) {
         super(owner, count);
         this.data = data;
         this.functionType = functionType;

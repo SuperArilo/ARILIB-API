@@ -4,7 +4,7 @@ import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
-import com.tty.api.state.EditGuiState;
+import com.tty.api.state.GuiEditFunctionState;
 import com.tty.api.utils.FormatUtils;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
@@ -19,7 +19,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory, D> ex
     @EventHandler
     public void onPlayerChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
-        EditGuiState<D> state = this.isHaveState(player);
+        GuiEditFunctionState<D> state = this.isHaveState(player);
         if (state == null || !this.getGuiType().equals(state.getType())) return;
         event.setCancelled(true);
         String message = FormatUtils.componentToString(event.message());
@@ -39,7 +39,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory, D> ex
         }
     }
 
-    public abstract EditGuiState<D> isHaveState(Player player);
+    public abstract GuiEditFunctionState<D> isHaveState(Player player);
 
     /**
      * 检查玩家的输入内容
@@ -47,7 +47,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory, D> ex
      * @param state 玩家的输入状态类
      * @return true 检查通过，反之
      */
-    public abstract boolean onTitleEditStatus(String message, EditGuiState<D> state);
+    public abstract boolean onTitleEditStatus(String message, GuiEditFunctionState<D> state);
 
     public abstract void whenTimeout(Player player);
 
