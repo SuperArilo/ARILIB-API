@@ -164,7 +164,6 @@ public class ConfigurationManager {
     }
 
     public synchronized void saveAllFiles() {
-        String langType = this.plugin.getConfig().getString("lang", "cn");
         this.configurationMap.forEach((k, v) -> {
             try {
                 v.save();
