@@ -58,7 +58,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
     @Override
     protected void afterCreatedInventory(@NotNull Inventory inventory) {
         CompletableFuture.supplyAsync(() -> {
-            Mask mask = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getMask(), Mask.class);
+            Mask mask = this.getPlugin().getConfigurationManager().deepCopy(this.baseMenu.getMask(), Mask.class);
             this.beforeRenderMasksAsync(mask);
             return mask;
         }, this.getPlugin().getExecutorAsync())
@@ -67,7 +67,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             return CompletableFuture.completedFuture(true);
         }, this.getPlugin().getExecutorSync())
         .thenComposeAsync(i -> {
-            Map<String, FunctionItems> copy = this.getPlugin().getConfigInstance().deepCopy(this.baseMenu.getFunctionItems(), new TypeToken<Map<String, FunctionItems>>() {}.getType());
+            Map<String, FunctionItems> copy = this.getPlugin().getConfigurationManager().deepCopy(this.baseMenu.getFunctionItems(), new TypeToken<Map<String, FunctionItems>>() {}.getType());
             this.beforeRenderFunctionItemsAsync(copy);
             return CompletableFuture.completedFuture(copy);
         }, this.getPlugin().getExecutorAsync())
