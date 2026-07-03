@@ -84,10 +84,12 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                 consumer.accept(null);
             }
         }
+
+        this.enabling();
+
         this.nbtManager = new NbtManager(this);
         this.statusManager = new StatusManager();
         this.statusManager.registerStateMachine(this.services());
-        this.enabling();
     }
 
     @Override
