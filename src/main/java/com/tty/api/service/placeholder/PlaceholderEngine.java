@@ -12,6 +12,7 @@ public interface PlaceholderEngine {
 
     CompletableFuture<Component> render(String template, OfflinePlayer context);
     CompletableFuture<Component> renderList(List<String> templates, OfflinePlayer context);
+    CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context);
 
     default CompletableFuture<Component> render(String template, Player player) {
         return render(template, (OfflinePlayer) player);
@@ -19,6 +20,10 @@ public interface PlaceholderEngine {
 
     default CompletableFuture<Component> renderList(List<String> templates, Player player) {
         return renderList(templates, (OfflinePlayer) player);
+    }
+
+    default CompletableFuture<List<Component>> renderAsComponentList(List<String> list, Player player) {
+        return renderAsComponentList(list, (OfflinePlayer) player);
     }
 
 }

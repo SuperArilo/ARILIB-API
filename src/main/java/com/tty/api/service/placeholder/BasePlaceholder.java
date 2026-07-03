@@ -1,6 +1,5 @@
 package com.tty.api.service.placeholder;
 
-import com.google.common.reflect.TypeToken;
 import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.service.impl.PlaceholderEngineImpl;
@@ -9,7 +8,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -19,8 +17,6 @@ public class BasePlaceholder {
     private final PlaceholderEngineImpl engine;
     @Setter
     private BaseConfiguration instance;
-
-    private final Type typeTokenList = new TypeToken<List<String>>() {}.getType();
 
     public BasePlaceholder(AbstractJavaPlugin plugin, BaseConfiguration instance) {
         this.instance = instance;
@@ -37,19 +33,27 @@ public class BasePlaceholder {
     }
 
     public CompletableFuture<Component> render(String path, Player player) {
-        return this.engine.render(instance.getValue(path, String.class, "null"), player);
+        return this.engine.render(instance.getString(path), player);
     }
 
     public CompletableFuture<Component> render(String path, OfflinePlayer offlinePlayer) {
-        return this.engine.render(instance.getValue(path, String.class, "null"), offlinePlayer);
+        return this.engine.render(instance.getString(path), offlinePlayer);
     }
 
     public CompletableFuture<Component> renderList(String path, Player player) {
-        return this.engine.renderList(instance.getValue(path, typeTokenList, List.of()), player);
+        return this.engine.renderList(instance.getStringList(path), player);
     }
 
     public CompletableFuture<Component> renderList(String path, OfflinePlayer offlinePlayer) {
-        return this.engine.renderList(instance.getValue(path, typeTokenList, List.of()), offlinePlayer);
+        return this.engine.renderList(instance.getStringList(path), offlinePlayer);
+    }
+
+    public CompletableFuture<List<Component>> renderAsList(String path, OfflinePlayer offlinePlayer) {
+        return this.engine.renderAsComponentList(instance.getStringList(path), offlinePlayer);
+    }
+
+    public CompletableFuture<List<Component>> renderAsList(String path, Player player) {
+        return this.engine.renderAsComponentList(instance.getStringList(path), player);
     }
 
     protected void addRegister(PlaceholderRegistry registry) {

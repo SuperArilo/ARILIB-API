@@ -89,4 +89,43 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             return Component.join(JoinConfiguration.separator(Component.newline()), components);
         }, this.plugin.getExecutorAsync());
     }
+
+    @Override
+    public CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context) {
+        Set<String> keys = new HashSet<>();
+        for (String line : list) {
+            Matcher matcher = PATTERN.matcher(line);
+            while (matcher.find()) {
+                keys.add(matcher.group(1));
+            }
+        }
+
+        Map<String, CompletableFuture<Component>> futures = new HashMap<>(keys.size());
+        for (String key : keys) {
+            this.registry.find(key, context)
+                    .ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
+        }
+
+        if (futures.isEmpty()) {
+            List<Component> components = new ArrayList<>(list.size());
+            for (String line : list) {
+                components.add(this.plugin.getComponentTool().text(line, context, Collections.emptyMap()));
+            }
+            return CompletableFuture.completedFuture(components);
+        }
+
+        CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
+        return CompletableFuture.allOf(all).thenApplyAsync(v -> {
+            Map<String, Component> resolved = new HashMap<>(futures.size());
+            futures.forEach((k, f) -> resolved.put(k, f.join())); // 此时所有 future 均已完成，join 不会阻塞
+
+            List<Component> components = new ArrayList<>(list.size());
+            for (String line : list) {
+                components.add(this.plugin.getComponentTool().text(line, context, resolved));
+            }
+            return components;
+        }, this.plugin.getExecutorAsync());
+
+    }
+
 }

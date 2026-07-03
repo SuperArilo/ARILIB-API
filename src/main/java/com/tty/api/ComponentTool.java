@@ -58,27 +58,35 @@ public class ComponentTool {
         return textList(list, null);
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, long fadeIn, long stay, long fadeOut) {
+    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title),
                 text(subTitle),
-                Title.Times.times(Duration.ofMillis(fadeIn), Duration.ofMillis(stay), Duration.ofMillis(fadeOut))
+                Title.Times.times(fadeIn, stay, fadeOut)
         );
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull Component subTitle, long fadeIn, long stay, long fadeOut) {
+    public Title setPlayerTitle(@NotNull Component title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
+        return Title.title(
+                title,
+                subTitle,
+                Title.Times.times(fadeIn, stay, fadeOut)
+        );
+    }
+
+    public Title setPlayerTitle(@NotNull String title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title),
                 subTitle,
-                Title.Times.times(Duration.ofMillis(fadeIn), Duration.ofMillis(stay), Duration.ofMillis(fadeOut))
+                Title.Times.times(fadeIn, stay, fadeOut)
         );
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Map<String, Component> placeholders, long fadeIn, long stay, long fadeOut) {
+    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Map<String, Component> placeholders, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title, placeholders),
                 text(subTitle, placeholders),
-                Title.Times.times(Duration.ofMillis(fadeIn), Duration.ofMillis(stay), Duration.ofMillis(fadeOut))
+                Title.Times.times(fadeIn, stay, fadeOut)
         );
     }
 
