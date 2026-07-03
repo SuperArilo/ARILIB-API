@@ -2,6 +2,7 @@ package com.tty.api;
 
 import com.tty.api.dto.TempRegisterService;
 import com.tty.api.configuration.BaseConfiguration;
+import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -42,6 +43,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Getter
     private ComponentTool componentTool;
 
+    @Getter
+    private StatusManager statusManager;
+
     @Override
     public void onLoad() {
         this.log = new Log(this);
@@ -80,6 +84,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             }
         }
         this.nbtManager = new NbtManager(this);
+        this.statusManager = new StatusManager();
+        this.statusManager.registerStateMachine(this.services());
         this.enabling();
     }
 
@@ -117,6 +123,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @NotNull protected abstract List<Listener> registerEvents();
 
     @Nullable protected abstract List<BaseConfiguration> configurations();
+
+    @Nullable protected abstract List<StateService<?>> services();
 
     public void doReloadAllFiles(@Nullable CommandSender sender) {
         this.saveDefaultConfig();
