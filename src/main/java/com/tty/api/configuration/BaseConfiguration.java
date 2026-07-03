@@ -116,7 +116,7 @@ public abstract class BaseConfiguration {
             this.configuration.set(path + "." + k, valueToSave);
         });
         this.cache.invalidateAll();
-        this.plugin.getScheduler().runAsync(this.plugin, i -> {
+        this.plugin.getScheduler().runAsync(i -> {
             try {
                 this.configuration.save(new File(this.plugin.getDataFolder(), this.path));
             } catch (IOException e) {

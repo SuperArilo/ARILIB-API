@@ -72,7 +72,7 @@ public class ConfigurationManager {
         AtomicInteger count = new AtomicInteger(0);
         Runnable onAllAsyncDone = () -> {
             if (count.decrementAndGet() == 0) {
-                this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
+                this.plugin.getScheduler().run(i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
             }
         };
         for (BaseConfiguration configuration : list) {
@@ -106,7 +106,7 @@ public class ConfigurationManager {
             }
         }
         if (count.get() == 0) {
-            this.plugin.getScheduler().run(this.plugin, i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
+            this.plugin.getScheduler().run(i -> Bukkit.getServer().getPluginManager().callEvent(new WhenPluginConfigReloadCompleteEvent(this.plugin, sender)));
         }
     }
 

@@ -47,11 +47,11 @@ public abstract class StateService<T extends State> {
         }
     }
 
-    private CancellableTask createTask(long rate, long c, boolean isAsync, AbstractJavaPlugin javaPlugin) {
+    private CancellableTask createTask(long rate, long c, boolean isAsync) {
         if (isAsync) {
-            return this.plugin.getScheduler().runAsyncAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
+            return this.plugin.getScheduler().runAsyncAtFixedRate(i -> this.execute(), c, rate);
         } else {
-            return this.plugin.getScheduler().runAtFixedRate(javaPlugin, i -> this.execute(), c, rate);
+            return this.plugin.getScheduler().runAtFixedRate(i -> this.execute(), c, rate);
         }
     }
 
@@ -135,7 +135,7 @@ public abstract class StateService<T extends State> {
 
             synchronized (this.lock) {
                 if (task == null) {
-                    this.task = this.createTask(this.rate, this.c, this.isAsync, this.plugin);
+                    this.task = this.createTask(this.rate, this.c, this.isAsync);
                 }
             }
             return true;

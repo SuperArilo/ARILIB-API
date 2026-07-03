@@ -75,11 +75,11 @@ public class SearchSafeLocation {
 
         int finalTryCount = tryCount;
         if (chunkLocalY == Integer.MAX_VALUE) {
-            this.plugin.getScheduler().runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> this.attemptSearch(world, chunk, finalTryCount, result));
+            this.plugin.getScheduler().runAtRegion(world, chunk.getX(), chunk.getZ(), i -> this.attemptSearch(world, chunk, finalTryCount, result));
             return;
         }
 
-        this.plugin.getScheduler().runAtRegion(this.plugin, world, chunk.getX(), chunk.getZ(), i -> {
+        this.plugin.getScheduler().runAtRegion(world, chunk.getX(), chunk.getZ(), i -> {
             try {
                 if (this.isLocationSafe(chunk, chunkLocalX, chunkLocalY, chunkLocalZ)) {
                     Location location = new Location(world, newWorldX, chunkLocalY, newWorldZ);

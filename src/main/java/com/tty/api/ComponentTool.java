@@ -100,7 +100,7 @@ public class ComponentTool {
 
     public CompletableFuture<Component> setHoverItemText(ItemStack itemStack) {
         CompletableFuture<Component> future = new CompletableFuture<>();
-        this.plugin.getScheduler().run(this.plugin, i -> {
+        this.plugin.getScheduler().run(i -> {
             if (itemStack == null || itemStack.isEmpty()) {
                 future.complete(Component.empty());
             } else {
@@ -116,7 +116,7 @@ public class ComponentTool {
             future.complete(Component.empty());
             return future;
         }
-        this.plugin.getScheduler().runAtRegion(this.plugin, entity.getLocation(), i -> future.complete(Component.empty().append(entity.name()).hoverEvent(HoverEvent.showText(Component.text(entity.getType().key().asString())))));
+        this.plugin.getScheduler().runAtRegion(entity.getLocation(), i -> future.complete(Component.empty().append(entity.name()).hoverEvent(HoverEvent.showText(Component.text(entity.getType().key().asString())))));
         return future;
     }
 

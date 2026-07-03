@@ -29,7 +29,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     private Log log;
 
     @Getter
-    private final Scheduler scheduler = Scheduler.create();
+    private Scheduler scheduler;
 
     @Getter
     private Executor executorSync;
@@ -49,6 +49,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Override
     public void onLoad() {
         this.log = new Log(this);
+        this.scheduler = Scheduler.create(this);
         this.loading();
     }
 
@@ -62,8 +63,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.doReloadAllFiles(null);
 
         this.componentTool = new ComponentTool(this);
-        this.executorSync = task -> this.scheduler.run(this, i -> task.run());
-        this.executorAsync = task -> this.scheduler.runAsync(this, i -> task.run());
+        this.executorSync = task -> this.scheduler.run(i -> task.run());
+        this.executorAsync = task -> this.scheduler.runAsync(i -> task.run());
 
         for (Listener event : this.registerEvents()) {
             Bukkit.getPluginManager().registerEvents(event, this);
