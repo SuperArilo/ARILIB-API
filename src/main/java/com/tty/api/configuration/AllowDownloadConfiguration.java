@@ -17,6 +17,11 @@ public abstract class AllowDownloadConfiguration extends BaseConfiguration imple
         this.plugin = plugin;
     }
 
+    public AllowDownloadConfiguration(AbstractJavaPlugin plugin) {
+        super(plugin);
+        this.plugin = plugin;
+    }
+
     public String getUrl() {
         return DOWNLOAD_URL + this.plugin.getName() + "/" + Arrays.stream(this.getPath().split("/")).map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8)).collect(Collectors.joining("/"));
     }

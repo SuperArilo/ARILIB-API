@@ -2,9 +2,9 @@ package com.tty.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
-import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.configuration.AllowDownloadConfiguration;
+import com.tty.api.configuration.BaseConfiguration;
+import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
 import okhttp3.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -17,6 +17,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,27 @@ public class ConfigurationManager {
     @SuppressWarnings("unchecked")
     public <T extends BaseConfiguration> T get(Class<T> tClass) {
         BaseConfiguration configuration = this.configurationMap.get(tClass);
-        if (configuration == null) throw new IllegalStateException("Missing config: " + tClass.getName());
+        if (configuration == null) {
+            try {
+                Constructor<T> matched = null;
+                for (Constructor<?> ctor : tClass.getDeclaredConstructors()) {
+                    if (ctor.getParameterCount() == 1) {
+                        Class<?> paramType = ctor.getParameterTypes()[0];
+                        if (this.plugin == null || paramType.isAssignableFrom(this.plugin.getClass())) {
+                            matched = (Constructor<T>) ctor;
+                            break;
+                        }
+                    }
+                }
+                if (matched == null) {
+                    throw new NoSuchMethodException("No constructor compatible with " + this.plugin);
+                }
+                configuration = matched.newInstance(this.plugin);
+                this.configurationMap.put(tClass, configuration);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to instantiate " + tClass.getName(), e);
+            }
+        }
         return (T) configuration;
     }
 

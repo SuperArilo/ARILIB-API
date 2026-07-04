@@ -8,4 +8,8 @@ public abstract class LangConfiguration extends AllowDownloadConfiguration {
         super(plugin, path.replace("[lang]", plugin.getConfig().getString("lang", "cn")));
     }
 
+    public LangConfiguration(AbstractJavaPlugin plugin) {
+        super(plugin);
+    }
+
 }

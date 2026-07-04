@@ -17,6 +17,10 @@ public class CommandRegister {
         long start = System.currentTimeMillis();
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
+            if (aliasItemMap == null) {
+                plugin.getLog().warn("command map is null, skip...");
+                return;
+            }
             aliasItemMap.forEach((k, v) -> {
                 if(!v.isEnable()) return;
                 Class<?> executorClass;

@@ -42,7 +42,7 @@ public abstract class BaseConfiguration {
             .build();
 
     @Getter
-    private final String path;
+    private String path = "";
 
     public BaseConfiguration(AbstractJavaPlugin plugin, String path) {
         this.plugin = plugin;
@@ -53,30 +53,38 @@ public abstract class BaseConfiguration {
         }
     }
 
+    /**
+     * 默认空构造，防止插件无法启动
+     * @param plugin 插件实例
+     */
+    public BaseConfiguration(AbstractJavaPlugin plugin) {
+        this.plugin = plugin;
+        this.configuration = new YamlConfiguration();
+    }
+
     public String getString(String keyPath) {
-        if (this.configuration == null) return "null";
-        return (String) cache.get(keyPath,
-                k -> this.configuration.getString(k, "null"));
+        if (this.isEmpty()) return "null";
+        return (String) cache.get(keyPath, k -> this.configuration.getString(k, "null"));
     }
 
     public boolean getBool(String keyPath, boolean defaultValue) {
-        if (this.configuration == null) return defaultValue;
+        if (this.isEmpty()) return defaultValue;
         return (Boolean) cache.get(keyPath, k -> this.configuration.getBoolean(k, defaultValue));
     }
 
     public int getInt(String keyPath, int defaultValue) {
-        if (this.configuration == null) return defaultValue;
+        if (this.isEmpty()) return defaultValue;
         return (Integer) cache.get(keyPath, k -> this.configuration.getInt(k, defaultValue));
     }
 
     public List<String> getStringList(String keyPath) {
-        if (this.configuration == null) return List.of();
+        if (this.isEmpty()) return List.of();
         return (List<String>) cache.get(keyPath, k -> this.configuration.getStringList(k));
     }
 
     public <T> T getValue(String keyPath, Type type, T defaultValue) {
         if (keyPath == null || keyPath.isEmpty()) return defaultValue;
-        if (this.configuration == null) return defaultValue;
+        if (this.isEmpty()) return defaultValue;
         String cacheKey = keyPath + "::" + type.getTypeName();
         return (T) cache.get(cacheKey, k -> {
             Object value = this.configuration.get(keyPath);
@@ -100,7 +108,10 @@ public abstract class BaseConfiguration {
     }
 
     public <S> void setValue(String path, Map<String, S> values) {
-        if (this.configuration == null) throw new NullPointerException("configuration file not found.");
+        if (this.isEmpty()) {
+            this.plugin.getLog().warn("configuration file not found. skip set value to save.");
+            return;
+        }
         values.forEach((k, v) -> {
             Object valueToSave = v;
             if (!(v instanceof Map) && !(v instanceof String) && !(v instanceof Number) && !(v instanceof Boolean)) {
@@ -126,7 +137,7 @@ public abstract class BaseConfiguration {
     }
 
     public boolean isEmpty() {
-        return this.configuration == null;
+        return this.configuration.getKeys(false).isEmpty();
     }
 
     private static Map<String, Object> sectionToMap(ConfigurationSection section) {
@@ -143,6 +154,7 @@ public abstract class BaseConfiguration {
     }
 
     public void save() throws IOException {
+        if (this.isEmpty()) return;
         this.configuration.save(new File(this.plugin.getDataFolder(), this.path));
     }
 
