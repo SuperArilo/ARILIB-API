@@ -49,7 +49,7 @@ public class ConfigurationManager {
     @SuppressWarnings("unchecked")
     public <T extends BaseConfiguration> T get(Class<T> tClass) {
         BaseConfiguration configuration = this.configurationMap.get(tClass);
-        if (configuration == null) throw new NullPointerException("could not found configuration.");
+        if (configuration == null) throw new IllegalStateException("Missing config: " + tClass.getName());
         return (T) configuration;
     }
 
