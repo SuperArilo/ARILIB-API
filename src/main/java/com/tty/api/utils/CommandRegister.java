@@ -13,16 +13,23 @@ import java.util.Map;
 public class CommandRegister {
 
     public static void register(AbstractJavaPlugin plugin, String packagePath, Map<String, AliasItem> aliasItemMap) {
-        plugin.getLog().debug("----------register commands ----------");
-        long start = System.currentTimeMillis();
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
-            if (aliasItemMap == null) {
-                plugin.getLog().warn("command map is null, skip...");
+            if (aliasItemMap == null || aliasItemMap.isEmpty()) {
+                String pluginName = plugin.getName().toLowerCase();
+                try {
+                    Object instance = Class.forName(packagePath + "." + pluginName, true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
+                    if (instance instanceof SuperHandsomeCommand cmd) {
+                        commands.register((LiteralCommandNode<CommandSourceStack>) cmd.toBrigadier());
+                    }
+                } catch (Exception e) {
+                    plugin.getLog().error(e, "Failed to register root command: {}", pluginName);
+                }
                 return;
             }
+
             aliasItemMap.forEach((k, v) -> {
-                if(!v.isEnable()) return;
+                if (!v.isEnable()) return;
                 Class<?> executorClass;
                 try {
                     executorClass = Class.forName(packagePath + "." + k, true, plugin.getClass().getClassLoader());
@@ -38,12 +45,15 @@ public class CommandRegister {
                     return;
                 }
                 if (executorInstance instanceof SuperHandsomeCommand cmd) {
-                    commands.register((LiteralCommandNode<CommandSourceStack>) cmd.toBrigadier(), v.getUsage());
-                    plugin.getLog().debug((v.isEnable() ? "":"un" ) + "register command: {}", k);
+                    try {
+                        LiteralCommandNode<CommandSourceStack> node = (LiteralCommandNode<CommandSourceStack>) cmd.toBrigadier();
+                        commands.register(node, v.getUsage());
+                        plugin.getLog().debug("register command: {}", k);
+                    } catch (Exception e) {
+                        plugin.getLog().error(e, "Failed to register command: {}", k);
+                    }
                 }
             });
-            plugin.getLog().debug("register commands time: {}ms", (System.currentTimeMillis() - start));
         });
     }
-
 }
