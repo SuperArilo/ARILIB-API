@@ -34,7 +34,7 @@ public abstract class BaseConfiguration {
 
     @Setter
     @Getter
-    private YamlConfiguration configuration;
+    private YamlConfiguration configuration = new YamlConfiguration();
 
     private final Cache<@NotNull String, Object> cache = Caffeine.newBuilder()
             .maximumSize(2000)
@@ -59,7 +59,6 @@ public abstract class BaseConfiguration {
      */
     public BaseConfiguration(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
-        this.configuration = new YamlConfiguration();
     }
 
     public String getString(String keyPath) {
