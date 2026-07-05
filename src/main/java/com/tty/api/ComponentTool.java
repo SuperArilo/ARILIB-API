@@ -34,19 +34,19 @@ public class ComponentTool {
         this.plugin = plugin;
     }
 
-    public TextComponent text(String content) {
+    public TextComponent text(@Nullable String content) {
         return build(null, content, null);
     }
 
-    public TextComponent text(String content, Map<String, Component> placeholders) {
+    public TextComponent text(@Nullable String content, Map<String, Component> placeholders) {
         return build(null, content, placeholders);
     }
 
-    public TextComponent text(String content, OfflinePlayer player) {
+    public TextComponent text(@Nullable String content, OfflinePlayer player) {
         return build(player, content, null);
     }
 
-    public TextComponent text(String content, OfflinePlayer player, Map<String, Component> placeholders) {
+    public TextComponent text(@Nullable String content, OfflinePlayer player, Map<String, Component> placeholders) {
         return build(player, content, placeholders);
     }
 
@@ -129,8 +129,10 @@ public class ComponentTool {
     }
 
     @SuppressWarnings("PatternValidation")
-    private TextComponent build(OfflinePlayer player, String template, Map<String, Component> placeholders) {
-        Objects.requireNonNull(template, "template cannot be null");
+    private TextComponent build(OfflinePlayer player,@Nullable String template, Map<String, Component> placeholders) {
+        if (template == null) {
+            template = "";
+        }
         if (player != null && Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             template = PlaceholderAPI.setPlaceholders(player, template);
         }
