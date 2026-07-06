@@ -1,13 +1,8 @@
 package com.tty.api.utils;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -48,46 +43,6 @@ public class PublicFunctionUtils {
         if (input == null) input = "";
         String finalInput = input;
         return raw.stream().filter(s -> s.startsWith(finalInput)).collect(Collectors.toUnmodifiableSet());
-    }
-
-    /**
-     * 将字符串列表转换为枚举列表的通用方法
-     *
-     * @param <T>         枚举类型，必须是Enum的子类
-     * @param stringList  待转换的字符串列表
-     * @param enumClass   目标枚举类的Class对象
-     * @param caseSensitive true 小写，false 大写
-     * @return 转换成功的枚举值列表，忽略无法转换的项
-     */
-    public static  <T extends Enum<T>> List<T> convertStringListToEnumList(List<String> stringList, Class<T> enumClass, boolean caseSensitive) throws IllegalArgumentException {
-        List<T> result = new ArrayList<>();
-        for (String item : stringList) {
-            if (item == null || item.trim().isEmpty()) {
-                continue;
-            }
-            String cleanName = item.trim();
-            String enumName = caseSensitive ? cleanName.toLowerCase() : cleanName.toUpperCase();
-            T enumValue = Enum.valueOf(enumClass, enumName);
-            result.add(enumValue);
-        }
-        return result;
-    }
-
-    /**
-     * 根据输入参数解析 UUID
-     * @param value 玩家名字或 UUID
-     * @return 玩家 UUID，如果不存在则返回 null
-     */
-    public @NotNull
-    static UUID parseUUID(String value) {
-        UUID uuid = null;
-        try {
-            uuid = UUID.fromString(value);
-        } catch (Exception ignored) { }
-        if (uuid == null) {
-            uuid = Bukkit.getServer().getOfflinePlayer(value).getUniqueId();
-        }
-        return uuid;
     }
 
 }
