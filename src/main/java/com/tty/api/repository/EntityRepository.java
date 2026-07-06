@@ -172,19 +172,20 @@ public abstract class EntityRepository<T> {
             return CompletableFuture.completedFuture(false);
         }
 
-        return this.manager.get(key).thenComposeAsync(oldEntity -> {
-            if (oldEntity == null) {
-                this.debug("Entity not found for update with key: {}, partition: {}", key, partition);
+        return this.manager.getList(1, Integer.MAX_VALUE, key).thenComposeAsync(pageResult -> {
+            List<T> oldEntities = pageResult.records();
+            if (oldEntities.isEmpty()) {
+                this.debug("No entities found for update, partition: {}, key: {}", partition, key);
                 return CompletableFuture.completedFuture(false);
             }
-
             return this.manager.update(entity, key).thenApplyAsync(success -> {
                 if (!success) return false;
-                this.invalidateEntityCaches(oldEntity, partition);
+                for (T oldEntity : oldEntities) {
+                    this.invalidateEntityCaches(oldEntity, partition);
+                }
                 this.cacheEntity(entity, partition);
                 this.invalidateAllPagesInPartition(partition);
-
-                this.debug("Entity updated successfully: {}", entity);
+                this.debug("Update successful, invalidated {} old entities' caches", oldEntities.size());
                 return true;
             }, this.getAutoExecutor());
         }, this.getAutoExecutor());
@@ -194,18 +195,20 @@ public abstract class EntityRepository<T> {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(0);
         }
-        return this.manager.get(key).thenComposeAsync(entity -> {
-            if (entity == null) {
-                this.debug("Entity not found for deletion with key: {}, partition: {}", key, partition);
+        return this.manager.getList(1, Integer.MAX_VALUE, key).thenComposeAsync(pageResult -> {
+            List<T> entities = pageResult.records();
+            if (entities.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
-            return this.manager.delete(key).thenApplyAsync(success -> {
-                this.invalidateEntityCaches(entity, partition);
+
+            return this.manager.delete(key).thenApplyAsync(count -> {
+                for (T entity : entities) {
+                    this.invalidateEntityCaches(entity, partition);
+                }
                 this.invalidateAllPagesInPartition(partition);
-                this.debug("Entity deleted successfully: {}", entity);
-                return success;
+                return count;
             }, this.getAutoExecutor());
-        }, this.getAutoExecutor());
+       }, this.getAutoExecutor());
     }
 
     /**
