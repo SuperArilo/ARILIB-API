@@ -4,9 +4,12 @@ package com.tty.api.utils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tty.api.dto.PageResult;
 import lombok.Getter;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.*;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * 基础sql接口类
@@ -22,7 +25,10 @@ public abstract class BaseDataManager<T> {
 
     private final ExecutorService executor;
 
-    public BaseDataManager(boolean isAsync) {
+    private final SqlSessionFactory factory;
+
+    public BaseDataManager(@NotNull SqlSessionFactory factory, boolean isAsync) {
+        this.factory = factory;
         this.isAsync = isAsync;
         this.executor = new ThreadPoolExecutor(
                 2,
@@ -46,22 +52,50 @@ public abstract class BaseDataManager<T> {
         this.isAsync = async;
     }
 
-    protected <R> CompletableFuture<R> executeTask(Supplier<R> task) {
+    protected <R> CompletableFuture<R> executeTask(Function<SqlSession, R> task) {
+        SqlSession session = this.factory.openSession(true);
         if (!this.isAsync) {
             try {
-                return CompletableFuture.completedFuture(task.get());
+                R result = task.apply(session);
+                return CompletableFuture.completedFuture(result);
             } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
+            } finally {
+                session.close();
             }
+        } else {
+            return CompletableFuture.supplyAsync(() -> task.apply(session), this.executor).whenComplete((result, ex) -> session.close());
         }
+    }
 
-        return CompletableFuture.supplyAsync(() -> {
+    protected <R> CompletableFuture<R> executeTransaction(Function<SqlSession, R> task) {
+        if (!this.isAsync) {
+            SqlSession session = this.factory.openSession(false);
             try {
-                return task.get();
+                R result = task.apply(session);
+                session.commit();
+                return CompletableFuture.completedFuture(result);
             } catch (Exception e) {
-                throw new CompletionException(e);
+                session.rollback();
+                return CompletableFuture.failedFuture(e);
+            } finally {
+                session.close();
             }
-        }, this.executor);
+        } else {
+            return CompletableFuture.supplyAsync(() -> {
+                SqlSession session = this.factory.openSession(false);
+                try {
+                    R result = task.apply(session);
+                    session.commit();
+                    return result;
+                } catch (Exception e) {
+                    session.rollback();
+                    throw e;
+                } finally {
+                    session.close();
+                }
+            }, this.executor);
+        }
     }
 
     public abstract CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> key);
