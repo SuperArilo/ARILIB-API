@@ -190,21 +190,20 @@ public abstract class EntityRepository<T> {
         }, this.getAutoExecutor());
     }
 
-    public CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
+    public CompletableFuture<Integer> delete(LambdaQueryWrapper<T> key, PartitionKey partition) {
         if (this.manager == null) {
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.completedFuture(0);
         }
         return this.manager.get(key).thenComposeAsync(entity -> {
             if (entity == null) {
                 this.debug("Entity not found for deletion with key: {}, partition: {}", key, partition);
-                return CompletableFuture.completedFuture(false);
+                return CompletableFuture.completedFuture(0);
             }
             return this.manager.delete(key).thenApplyAsync(success -> {
-                if (!success) return false;
                 this.invalidateEntityCaches(entity, partition);
                 this.invalidateAllPagesInPartition(partition);
                 this.debug("Entity deleted successfully: {}", entity);
-                return true;
+                return success;
             }, this.getAutoExecutor());
         }, this.getAutoExecutor());
     }

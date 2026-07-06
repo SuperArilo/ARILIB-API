@@ -72,7 +72,7 @@ public abstract class BaseDataManager<T> {
 
     public abstract CompletableFuture<Boolean> delete(T entity);
 
-    public abstract CompletableFuture<Boolean> delete(LambdaQueryWrapper<T> key);
+    public abstract CompletableFuture<Integer> delete(LambdaQueryWrapper<T> key);
 
     public abstract CompletableFuture<Boolean> update(T instance, LambdaQueryWrapper<T> key);
 
