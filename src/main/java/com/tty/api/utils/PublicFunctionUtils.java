@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 public class PublicFunctionUtils {
 
-    private static final Pattern ENTITY_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9\\u4e00-\\u9fa5]+$");
+    private static final Pattern ENTITY_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9_]*$");
 
     /**
      * 检查材质是否是ITEM
