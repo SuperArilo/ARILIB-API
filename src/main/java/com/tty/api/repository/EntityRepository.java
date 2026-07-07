@@ -171,23 +171,23 @@ public abstract class EntityRepository<T> {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(false);
         }
-
-        return this.manager.getList(1, Integer.MAX_VALUE, key).thenComposeAsync(pageResult -> {
-            List<T> oldEntities = pageResult.records();
+        return this.fetchEntityByPage(key).thenComposeAsync(oldEntities -> {
             if (oldEntities.isEmpty()) {
                 this.debug("No entities found for update, partition: {}, key: {}", partition, key);
                 return CompletableFuture.completedFuture(false);
             }
-            return this.manager.update(entity, key).thenApplyAsync(success -> {
-                if (!success) return false;
+            return this.manager.update(entity, key).thenApply(success -> {
+                if (!success) {
+                    return false;
+                }
                 for (T oldEntity : oldEntities) {
                     this.invalidateEntityCaches(oldEntity, partition);
                 }
                 this.cacheEntity(entity, partition);
                 this.invalidateAllPagesInPartition(partition);
-                this.debug("Update successful, invalidated {} old entities' caches", oldEntities.size());
+                this.debug("Update successful, invalidated {} old entity caches", oldEntities.size());
                 return true;
-            }, this.getAutoExecutor());
+            });
         }, this.getAutoExecutor());
     }
 
@@ -195,20 +195,40 @@ public abstract class EntityRepository<T> {
         if (this.manager == null) {
             return CompletableFuture.completedFuture(0);
         }
-        return this.manager.getList(1, Integer.MAX_VALUE, key).thenComposeAsync(pageResult -> {
-            List<T> entities = pageResult.records();
+        return this.fetchEntityByPage(key).thenComposeAsync(entities -> {
             if (entities.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
-
-            return this.manager.delete(key).thenApplyAsync(count -> {
-                for (T entity : entities) {
-                    this.invalidateEntityCaches(entity, partition);
+            return this.manager.delete(key).thenApply(count -> {
+                if (count > 0) {
+                    for (T entity : entities) {
+                        this.invalidateEntityCaches(entity, partition);
+                    }
+                    this.invalidateAllPagesInPartition(partition);
                 }
-                this.invalidateAllPagesInPartition(partition);
                 return count;
-            }, this.getAutoExecutor());
-       }, this.getAutoExecutor());
+
+            });
+        }, this.getAutoExecutor());
+    }
+
+    private CompletableFuture<List<T>> fetchEntityByPage(LambdaQueryWrapper<T> condition) {
+        List<T> result = new ArrayList<>();
+        final int PAGE_SIZE = 500;
+        return this.fetchEntityPageRecursive(condition, 1, PAGE_SIZE, result);
+    }
+
+    private CompletableFuture<List<T>> fetchEntityPageRecursive(LambdaQueryWrapper<T> condition, int pageNum, int pageSize, List<T> result) {
+        return this.manager.getList(pageNum, pageSize, condition).thenCompose(page -> {
+            if (page == null || page.records().isEmpty()) {
+                return CompletableFuture.completedFuture(result);
+            }
+            result.addAll(page.records());
+            if (page.records().size() < pageSize) {
+                return CompletableFuture.completedFuture(result);
+            }
+            return fetchEntityPageRecursive(condition, pageNum + 1, pageSize, result);
+        });
     }
 
     /**
