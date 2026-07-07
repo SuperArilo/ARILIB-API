@@ -4,12 +4,9 @@ import org.bukkit.Material;
 
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class PublicFunctionUtils {
-
-    private static final Pattern ENTITY_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9_]*$");
 
     /**
      * 检查材质是否是ITEM
@@ -46,15 +43,6 @@ public class PublicFunctionUtils {
         if (input == null) input = "";
         String finalInput = input;
         return raw.stream().filter(s -> s.startsWith(finalInput)).collect(Collectors.toUnmodifiableSet());
-    }
-
-    /**
-     * 检查创建实体的 id 字符串是否合法
-     * @param id 待检查字符串
-     * @return 空值或不符合格式返回 false
-     */
-    public static boolean isEntityIdValid(String id) {
-        return id != null && ENTITY_ID_PATTERN.matcher(id).matches();
     }
 
 }
