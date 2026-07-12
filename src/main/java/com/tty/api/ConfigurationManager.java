@@ -14,9 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -116,6 +114,9 @@ public class ConfigurationManager {
             } else {
                 if (!configuration.isEmpty()) {
                     this.configurationMap.put(configuration.getClass(), configuration);
+                    if (configuration instanceof AllowDownloadConfiguration download) {
+                        this.checkRemoteVersionAsync(download);
+                    }
                 } else if (configuration instanceof AllowDownloadConfiguration download) {
                     if (sender == null) {
                         this.downloadSync(download);
@@ -183,6 +184,36 @@ public class ConfigurationManager {
             }
         });
     }
+
+    private void checkRemoteVersionAsync(AllowDownloadConfiguration download) {
+        Request request = new Request.Builder().url(download.getUrl()).header("User-Agent", "PaperMC-Plugin").build();
+
+        this.client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                plugin.getLog().error(e);
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
+                try (response; response) {
+                    if (!response.isSuccessful()) return;
+                    try (StringReader reader = new StringReader(response.body().string())) {
+                        YamlConfiguration downloadConfig = YamlConfiguration.loadConfiguration(reader);
+                        double remoteVer = downloadConfig.getDouble("version", 0);
+                        double localVer = download.getVersion();
+                        if (Double.compare(remoteVer, localVer) != -1) {
+                            plugin.getLog().info("file {} need to update!", download.getPath());
+                            plugin.getLog().info("  local: {}  remote: {}", localVer, remoteVer);
+                        }
+                    }
+                } catch (IOException e) {
+                    plugin.getLog().error(e);
+                }
+            }
+        });
+    }
+
 
     public synchronized void saveAllFiles() {
         this.configurationMap.forEach((k, v) -> {
