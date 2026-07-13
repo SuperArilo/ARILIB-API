@@ -1,5 +1,6 @@
 package com.tty.api.command;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.context.StringRange;
@@ -19,18 +20,23 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractCommand implements SuperHandsomeCommand {
 
     @Getter
     private final AbstractJavaPlugin plugin;
 
+    private static final CommandManager COMMAND_MANAGER =  new CommandManager();
+
     protected AbstractCommand(AbstractJavaPlugin plugin) {
         this.plugin = plugin;
     }
 
-
-    public abstract int execute(CommandSender sender, String[] args);
+    public abstract CompletableFuture<Void> execute(CommandSender sender, String[] args);
 
     public abstract List<SuperHandsomeCommand> thenCommands();
 
@@ -39,6 +45,8 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
     protected abstract @NotNull Component tokenNotAllow();
 
     protected abstract @NotNull Component disableInGame();
+
+    protected abstract @NotNull Component taskAlreadyExits();
 
     protected abstract boolean isEnableInGame();
 
@@ -62,7 +70,24 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
             throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.tokenNotAllow())).create();
         }
 
-        return this.execute(sender, args);
+        if (!COMMAND_MANAGER.tryAcquire(sender)) {
+            throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.taskAlreadyExits())).create();
+        }
+
+        CompletableFuture<Void> future;
+        try {
+            future = this.execute(sender, args);
+        } catch (Throwable t) {
+            COMMAND_MANAGER.release(sender);
+            throw t;
+        }
+        future.orTimeout(10, TimeUnit.SECONDS).whenCompleteAsync((res, ex) -> {
+            if (ex != null) {
+                this.plugin.getLog().error(ex);
+            }
+            COMMAND_MANAGER.release(sender);
+        }, this.getPlugin().getExecutorAsync());
+        return Command.SINGLE_SUCCESS;
     }
 
     private String @NotNull [] getRealCommandArgs(CommandContext<CommandSourceStack> ctx) {
@@ -80,6 +105,25 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
             args.add(input.substring(range.getStart(), range.getEnd()));
         }
         return args.toArray(new String[0]);
+    }
+
+    private static class CommandManager {
+        private final Set<String> busyKeys = ConcurrentHashMap.newKeySet();
+
+        private String keyOf(CommandSender sender) {
+            if (sender instanceof Player player) {
+                return "player:" + player.getUniqueId();
+            }
+            return "console";
+        }
+
+        public boolean tryAcquire(CommandSender sender) {
+            return this.busyKeys.add(this.keyOf(sender));
+        }
+
+        public void release(CommandSender sender) {
+            this.busyKeys.remove(this.keyOf(sender));
+        }
     }
 
 }
