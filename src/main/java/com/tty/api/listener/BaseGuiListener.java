@@ -6,8 +6,10 @@ import com.tty.api.annotations.gui.GuiMeta;
 import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.enumType.NbtGuiValue;
+import com.tty.api.gui.AsyncGuiClick;
 import com.tty.api.gui.BaseInventory;
 import lombok.Getter;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -21,6 +23,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.*;
+
+@SuppressWarnings("unchecked")
 public abstract class BaseGuiListener<T extends BaseInventory> implements Listener {
 
     private final AbstractJavaPlugin plugin;
@@ -68,8 +73,8 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null || event.isShiftClick()) return;
 
-        ItemMeta meta = currentItem.getItemMeta();
-        if (meta == null) return;
+        ItemMeta itemMeta = currentItem.getItemMeta();
+        if (itemMeta == null) return;
 
         FunctionType type = this.ItemNBT_TypeCheck(this.plugin.getNbtManager().getNbt(NbtGuiValue.GUI_FUNCTION_ICON, currentItem, PersistentDataType.STRING));
         if (type == null) return;
@@ -78,7 +83,69 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
             if (this.functionHandler == null) {
                 this.functionHandler = this.registry();
             }
-            this.functionHandler.dispatch(type, event, (T) topHolder, player);
+            int slot = event.getRawSlot();
+            Inventory topInv = event.getView().getTopInventory();
+
+            if (type.equals(FunctionType.SAVE)) {
+                this.functionHandler.dispatch(type, event, (T) topHolder, player,
+                    () -> {
+                        if (!(this instanceof AsyncGuiClick click)) return;
+                        ItemStack item = topInv.getItem(slot);
+                        if (item == null || item.getType().isAir()) return;
+                        ItemMeta meta = item.getItemMeta();
+                        List<Component> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.lore())) : new ArrayList<>();
+                        lore.removeIf(c -> c.equals(click.whenPending()) || c.equals(click.whenDone()) || c.equals(click.whenError()));
+                        lore.add(click.whenPending());
+                        meta.lore(lore);
+                        item.setItemMeta(meta);
+                        topInv.setItem(slot, item);
+                    },
+                    () -> {
+                        if (!(this instanceof AsyncGuiClick click)) return;
+                        plugin.getScheduler().run(i -> {
+                            ItemStack item = topInv.getItem(slot);
+                            if (item == null || item.getType().isAir()) return;
+                            ItemMeta meta = item.getItemMeta();
+                            List<Component> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.lore())) : new ArrayList<>();
+                            lore.removeIf(c -> c.equals(click.whenPending()) || c.equals(click.whenError()));
+                            lore.add(click.whenDone());
+                            meta.lore(lore);
+                            item.setItemMeta(meta);
+                            topInv.setItem(slot, item);
+
+                            plugin.getScheduler().runLater(t -> {
+                                ItemStack laterItem = topInv.getItem(slot);
+                                if (laterItem == null || laterItem.getType().isAir()) return;
+                                ItemMeta laterMeta = laterItem.getItemMeta();
+                                List<Component> laterLore = laterMeta.hasLore() ? new ArrayList<>(Objects.requireNonNull(laterMeta.lore())) : new ArrayList<>();
+                                if (!laterLore.removeIf(c -> c.equals(click.whenDone()))) {
+                                    t.cancel();
+                                    return;
+                                }
+                                laterMeta.lore(laterLore);
+                                laterItem.setItemMeta(laterMeta);
+                                topInv.setItem(slot, laterItem);
+                            }, 25L);
+                        });
+                    },
+                    () -> {
+                        if (!(this instanceof AsyncGuiClick click)) return;
+                        plugin.getScheduler().run(i -> {
+                            ItemStack item = topInv.getItem(slot);
+                            if (item == null || item.getType().isAir()) return;
+                            ItemMeta meta = item.getItemMeta();
+                            List<Component> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.lore())) : new ArrayList<>();
+                            lore.removeIf(c -> c.equals(click.whenPending()) || c.equals(click.whenDone()));
+                            lore.add(click.whenError());
+                            meta.lore(lore);
+                            item.setItemMeta(meta);
+                            topInv.setItem(slot, item);
+                        });
+                    }
+                );
+            } else {
+                this.functionHandler.dispatch(type, event, (T) topHolder, player, null, null, null);
+            }
         }
     }
 
@@ -129,4 +196,5 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
         }
         return null;
     }
+
 }
