@@ -1,6 +1,5 @@
 package com.tty.api.utils;
 
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.tty.api.dto.PageResult;
 import lombok.Getter;
@@ -10,25 +9,19 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
-/**
- * 基础sql接口类
- * @param <T> 实体类
- */
 public abstract class BaseDataManager<T> {
 
-    /**
-     * 是否异步
-     */
     @Getter
     private volatile boolean isAsync;
 
     private final ExecutorService executor;
 
-    private final SqlSessionFactory factory;
+    private final Supplier<SqlSessionFactory> factorySupplier;
 
-    public BaseDataManager(@NotNull SqlSessionFactory factory, boolean isAsync) {
-        this.factory = factory;
+    public BaseDataManager(@NotNull Supplier<SqlSessionFactory> factorySupplier, boolean isAsync) {
+        this.factorySupplier = factorySupplier;
         this.isAsync = isAsync;
         this.executor = new ThreadPoolExecutor(
                 2,
@@ -53,7 +46,7 @@ public abstract class BaseDataManager<T> {
     }
 
     protected <R> CompletableFuture<R> executeTask(Function<SqlSession, R> task) {
-        SqlSession session = this.factory.openSession(true);
+        SqlSession session = this.factorySupplier.get().openSession(true);
         if (!this.isAsync) {
             try {
                 R result = task.apply(session);
@@ -64,13 +57,14 @@ public abstract class BaseDataManager<T> {
                 session.close();
             }
         } else {
-            return CompletableFuture.supplyAsync(() -> task.apply(session), this.executor).whenComplete((result, ex) -> session.close());
+            return CompletableFuture.supplyAsync(() -> task.apply(session), this.executor)
+                    .whenComplete((result, ex) -> session.close());
         }
     }
 
     protected <R> CompletableFuture<R> executeTransaction(Function<SqlSession, R> task) {
         if (!this.isAsync) {
-            SqlSession session = this.factory.openSession(false);
+            SqlSession session = this.factorySupplier.get().openSession(false);
             try {
                 R result = task.apply(session);
                 session.commit();
@@ -83,7 +77,7 @@ public abstract class BaseDataManager<T> {
             }
         } else {
             return CompletableFuture.supplyAsync(() -> {
-                SqlSession session = this.factory.openSession(false);
+                SqlSession session = this.factorySupplier.get().openSession(false);
                 try {
                     R result = task.apply(session);
                     session.commit();
