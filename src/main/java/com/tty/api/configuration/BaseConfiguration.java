@@ -63,22 +63,27 @@ public abstract class BaseConfiguration {
 
     public String getString(String keyPath) {
         if (this.isEmpty()) return "null";
-        return (String) cache.get(keyPath, k -> this.configuration.getString(k, "null"));
+        return (String) this.cache.get(keyPath, k -> this.configuration.getString(k, "null"));
     }
 
     public boolean getBool(String keyPath, boolean defaultValue) {
         if (this.isEmpty()) return defaultValue;
-        return (Boolean) cache.get(keyPath, k -> this.configuration.getBoolean(k, defaultValue));
+        return (Boolean) this.cache.get(keyPath, k -> this.configuration.getBoolean(k, defaultValue));
     }
 
     public int getInt(String keyPath, int defaultValue) {
         if (this.isEmpty()) return defaultValue;
-        return (Integer) cache.get(keyPath, k -> this.configuration.getInt(k, defaultValue));
+        return (Integer) this.cache.get(keyPath, k -> this.configuration.getInt(k, defaultValue));
     }
 
     public List<String> getStringList(String keyPath) {
         if (this.isEmpty()) return List.of();
-        return (List<String>) cache.get(keyPath, k -> this.configuration.getStringList(k));
+        return (List<String>) this.cache.get(keyPath, k -> this.configuration.getStringList(k));
+    }
+
+    public double getDouble(String keyPath, double defaultValue) {
+        if (this.isEmpty()) return defaultValue;
+        return (double) this.cache.get(keyPath, k -> this.configuration.getDouble(k));
     }
 
     public <T> T getValue(String keyPath, Type type, T defaultValue) {
