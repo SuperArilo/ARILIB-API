@@ -4,6 +4,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.tty.api.AbstractJavaPlugin;
 import com.tty.api.command.SuperHandsomeCommand;
 import com.tty.api.dto.AliasItem;
+import com.tty.api.dto.CommandAlias;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -12,9 +13,10 @@ import java.util.Map;
 
 public class CommandRegister {
 
-    public static void register(AbstractJavaPlugin plugin, String packagePath, Map<String, AliasItem> aliasItemMap) {
+    public static void register(AbstractJavaPlugin plugin, String packagePath, CommandAlias aliasConfig) {
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
+            Map<String, AliasItem> aliasItemMap = aliasConfig.getAliases();
             if (aliasItemMap == null || aliasItemMap.isEmpty()) {
                 String pluginName = plugin.getName().toLowerCase();
                 try {
