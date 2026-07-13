@@ -17,6 +17,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -186,7 +187,10 @@ public class ConfigurationManager {
     }
 
     private void checkRemoteVersionAsync(AllowDownloadConfiguration download) {
-        Request request = new Request.Builder().url(download.getUrl()).header("User-Agent", "PaperMC-Plugin").build();
+        Request request = new Request.Builder()
+                .url(download.getUrl())
+                .header("User-Agent", "PaperMC-Plugin")
+                .build();
 
         this.client.newCall(request).enqueue(new Callback() {
             @Override
@@ -196,16 +200,39 @@ public class ConfigurationManager {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
-                try (response; response) {
-                    if (!response.isSuccessful()) return;
-                    try (StringReader reader = new StringReader(response.body().string())) {
-                        YamlConfiguration downloadConfig = YamlConfiguration.loadConfiguration(reader);
-                        double remoteVer = downloadConfig.getDouble("version", 0);
-                        double localVer = download.getVersion();
-                        if (Double.compare(remoteVer, localVer) != -1) {
-                            plugin.getLog().info("file {} need to update!", download.getPath());
-                            plugin.getLog().info("  local: {}  remote: {}", localVer, remoteVer);
+                try (response) {
+                    if (!response.isSuccessful()) {
+                        plugin.getLog().warn("check update error, HTTP {} : {}", response.code(), download.getUrl());
+                        return;
+                    }
+
+                    long contentLength = response.body().contentLength();
+                    if (contentLength > 1024 * 1024) {
+                        plugin.getLog().warn("check file error, file is too large: {}", contentLength, download.getUrl());
+                        return;
+                    }
+
+                    double remote = 0;
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String trimmed = line.trim();
+                            if (trimmed.startsWith("version:")) {
+                                String value = trimmed.substring("version:".length()).trim();
+                                if (value.startsWith("\"") && value.endsWith("\"")) {
+                                    value = value.substring(1, value.length() - 1);
+                                }
+                                try {
+                                    remote = Double.parseDouble(value);
+                                } catch (NumberFormatException ignored) {}
+                                break;
+                            }
                         }
+                    }
+
+                    double local = download.getVersion();
+                    if (remote > local) {
+                        plugin.getLog().info("can update - file: {}  local: {}  remote: {}", download.getPath(), local, remote);
                     }
                 } catch (IOException e) {
                     plugin.getLog().error(e);
