@@ -102,31 +102,29 @@ public abstract class BaseGuiListener<T extends BaseInventory> implements Listen
                     },
                     () -> {
                         if (!(this instanceof AsyncGuiClick click)) return;
-                        plugin.getScheduler().run(i -> {
-                            ItemStack item = topInv.getItem(slot);
-                            if (item == null || item.getType().isAir()) return;
-                            ItemMeta meta = item.getItemMeta();
-                            List<Component> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.lore())) : new ArrayList<>();
-                            lore.removeIf(c -> c.equals(click.whenPending()) || c.equals(click.whenError()));
-                            lore.add(click.whenDone());
-                            meta.lore(lore);
-                            item.setItemMeta(meta);
-                            topInv.setItem(slot, item);
+                        ItemStack item = topInv.getItem(slot);
+                        if (item == null || item.getType().isAir()) return;
+                        ItemMeta meta = item.getItemMeta();
+                        List<Component> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.lore())) : new ArrayList<>();
+                        lore.removeIf(c -> c.equals(click.whenPending()) || c.equals(click.whenError()));
+                        lore.add(click.whenDone());
+                        meta.lore(lore);
+                        item.setItemMeta(meta);
+                        topInv.setItem(slot, item);
 
-                            plugin.getScheduler().runLater(t -> {
-                                ItemStack laterItem = topInv.getItem(slot);
-                                if (laterItem == null || laterItem.getType().isAir()) return;
-                                ItemMeta laterMeta = laterItem.getItemMeta();
-                                List<Component> laterLore = laterMeta.hasLore() ? new ArrayList<>(Objects.requireNonNull(laterMeta.lore())) : new ArrayList<>();
-                                if (!laterLore.removeIf(c -> c.equals(click.whenDone()))) {
-                                    t.cancel();
-                                    return;
-                                }
-                                laterMeta.lore(laterLore);
-                                laterItem.setItemMeta(laterMeta);
-                                topInv.setItem(slot, laterItem);
-                            }, 25L);
-                        });
+                        plugin.getScheduler().runLater(t -> {
+                            ItemStack laterItem = topInv.getItem(slot);
+                            if (laterItem == null || laterItem.getType().isAir()) return;
+                            ItemMeta laterMeta = laterItem.getItemMeta();
+                            List<Component> laterLore = laterMeta.hasLore() ? new ArrayList<>(Objects.requireNonNull(laterMeta.lore())) : new ArrayList<>();
+                            if (!laterLore.removeIf(c -> c.equals(click.whenDone()))) {
+                                t.cancel();
+                                return;
+                            }
+                            laterMeta.lore(laterLore);
+                            laterItem.setItemMeta(laterMeta);
+                            topInv.setItem(slot, laterItem);
+                        }, 20L);
                     },
                     () -> {
                         if (!(this instanceof AsyncGuiClick click)) return;
