@@ -90,16 +90,16 @@ public class ComponentTool {
         );
     }
 
-    public Component setClickEventText(Component component, ClickEvent.Action action, String actionText) {
-        return component.clickEvent(ClickEvent.clickEvent(action, actionText));
+    public Component setClickEventText(Component component, ClickEvent event) {
+        return component.clickEvent(event);
     }
 
-    public TextComponent setClickEventText(String content, ClickEvent.Action action, String actionText) {
-        return text(content).clickEvent(ClickEvent.clickEvent(action, actionText));
+    public TextComponent setClickEventText(String content, ClickEvent event) {
+        return text(content).clickEvent(event);
     }
 
-    public TextComponent setClickEventText(String content, Map<String, Component> placeholders, ClickEvent.Action action, String actionText) {
-        return text(content, placeholders).clickEvent(ClickEvent.clickEvent(action, actionText));
+    public TextComponent setClickEventText(String content, Map<String, Component> placeholders, ClickEvent event) {
+        return text(content, placeholders).clickEvent(event);
     }
 
     public TextComponent setHoverText(String content, String showText) {
