@@ -84,10 +84,12 @@ public class ConfigurationManager {
                 return this.gson.fromJson(this.gson.toJson(intermediateObj), type);
             } catch (Exception e) {
                 this.plugin.getLog().error(e, "could not convent type {}", type.getTypeName());
+                return null;
             }
-
+        } else {
+            return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
         }
-        return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
+
     }
 
     protected void reload(@Nullable List<BaseConfiguration> list, @Nullable CommandSender sender) {
