@@ -80,7 +80,12 @@ public class ConfigurationManager {
     public <T> T yamlConvertToObj(String rawYamlString, Type type) {
         Object intermediateObj = new Yaml(this.loaderOptions).load(rawYamlString);
         if (intermediateObj instanceof Map || intermediateObj instanceof List) {
-            return this.gson.fromJson(this.gson.toJson(intermediateObj), type);
+            try {
+                return this.gson.fromJson(this.gson.toJson(intermediateObj), type);
+            } catch (Exception e) {
+                this.plugin.getLog().error(e, "could not convent type {}", type.getTypeName());
+            }
+
         }
         return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
     }
