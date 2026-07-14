@@ -16,8 +16,8 @@ public class CommandRegister {
     public static void register(AbstractJavaPlugin plugin, String packagePath, CommandAlias aliasConfig) {
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
-            Map<String, AliasItem> aliasItemMap = aliasConfig.getAliases();
-            if (aliasItemMap == null || aliasItemMap.isEmpty()) {
+
+            if (aliasConfig == null) {
                 String pluginName = plugin.getName().toLowerCase();
                 try {
                     Object instance = Class.forName(packagePath + "." + pluginName, true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
@@ -30,6 +30,7 @@ public class CommandRegister {
                 return;
             }
 
+            Map<String, AliasItem> aliasItemMap = aliasConfig.getAliases();
             aliasItemMap.forEach((k, v) -> {
                 if (!v.isEnable()) return;
                 Class<?> executorClass;
