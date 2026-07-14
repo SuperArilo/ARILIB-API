@@ -21,9 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractCommand implements SuperHandsomeCommand {
 
@@ -36,7 +34,7 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
         this.plugin = plugin;
     }
 
-    public abstract CompletableFuture<Void> execute(CommandSender sender, String[] args);
+    public abstract void execute(CommandSender sender, String[] args);
 
     public abstract List<SuperHandsomeCommand> thenCommands();
 
@@ -74,19 +72,14 @@ public abstract class AbstractCommand implements SuperHandsomeCommand {
             throw new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(this.taskAlreadyExits())).create();
         }
 
-        CompletableFuture<Void> future;
         try {
-            future = this.execute(sender, args);
-        } catch (Throwable t) {
+            this.execute(sender, args);
+        } catch (Exception e) {
+            this.plugin.getLog().error(e);
+        } finally {
             COMMAND_MANAGER.release(sender);
-            throw t;
         }
-        future.orTimeout(10, TimeUnit.SECONDS).whenCompleteAsync((res, ex) -> {
-            if (ex != null) {
-                this.plugin.getLog().error(ex);
-            }
-            COMMAND_MANAGER.release(sender);
-        }, this.getPlugin().getExecutorAsync());
+
         return Command.SINGLE_SUCCESS;
     }
 
