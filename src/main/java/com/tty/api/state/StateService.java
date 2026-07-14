@@ -67,25 +67,23 @@ public abstract class StateService<T extends State> {
             }
             return;
         }
-
         synchronized (this.stateList) {
             Iterator<T> iterator = this.stateList.iterator();
             while (iterator.hasNext()) {
                 T state = iterator.next();
-
                 if (state.isOver()) {
                     iterator.remove();
                     this.onEarlyExit(state);
                     continue;
                 }
 
+                if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+
                 if (state.isDone()) {
-                    if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
                     iterator.remove();
                     this.onFinished(state);
                     continue;
                 }
-
                 if (!state.isPending()) {
                     state.setPending(true);
                     try {
