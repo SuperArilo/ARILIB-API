@@ -7,12 +7,17 @@ import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -132,6 +137,22 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     public void doReloadAllFiles(@Nullable CommandSender sender) {
         this.saveDefaultConfig();
         this.reloadConfig();
+
+        try (InputStream stream = this.getClass().getClassLoader().getResourceAsStream("config.yml")) {
+            if (stream == null) return;
+            try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(reader);
+                double defaultVersion = defaultConfig.getDouble("version", 1.0);
+                double currentVersion = this.getConfig().getDouble("version", 0);
+                if (currentVersion < defaultVersion) {
+                    this.getLog().info("Your config.yml is outdated (v{}). Please delete it to regenerate the latest version (v{})", currentVersion, defaultVersion);
+                }
+            }
+        } catch (IOException e) {
+            this.getLog().error(e);
+            return;
+        }
+
         this.debug = this.getConfig().getBoolean("debug.enable", false);
         this.log.setDebug(this.debug);
         if (this.configurationManager == null) {
