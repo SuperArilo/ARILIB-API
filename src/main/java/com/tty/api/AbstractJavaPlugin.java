@@ -8,7 +8,6 @@ import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
 import okhttp3.*;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -32,6 +31,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Getter
     private boolean debug = false;
+
+    @Getter
+    private PluginVersion version;
 
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -233,22 +235,15 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     public void checkUpdate() {
         this.requestVersion().thenAcceptAsync(s -> {
-
-            ComparableVersion current = new ComparableVersion(s.getCurrentVersion());
-            ComparableVersion remote = new ComparableVersion(s.getRemoteVersion());
-            int compare = current.compareTo(remote);
-
-            if (compare < 0) {
+            this.version = s;
+            if (s.hasNewVersion()) {
                 log.info("=========================================");
                 log.info("new version available: ", s.getRemoteVersion());
                 log.info("current version: " + s.getCurrentVersion());
                 log.info("=========================================");
-            } else if (compare > 0) {
-                log.info("You are using a development version ({}) which is newer than the latest release ({}).", s.getCurrentVersion(), s.getRemoteVersion());
             } else {
                 log.info("plugin is up to date now.");
             }
-
         }).exceptionallyAsync(i -> {
             this.getLog().error(i);
             return null;
