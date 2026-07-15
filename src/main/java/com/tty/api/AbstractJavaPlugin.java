@@ -1,10 +1,14 @@
 package com.tty.api;
 
+import com.google.gson.JsonParser;
+import com.tty.api.dto.PluginVersion;
 import com.tty.api.dto.TempRegisterService;
 import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
+import okhttp3.*;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -19,13 +23,20 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Getter
     private boolean debug = false;
+
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build();
 
     @Getter
     private ConfigurationManager configurationManager;
@@ -95,6 +106,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.nbtManager = new NbtManager(this);
         this.statusManager = new StatusManager();
         this.statusManager.registerStateMachine(this.services());
+
+        this.checkUpdate();
     }
 
     @Override
@@ -159,6 +172,87 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.configurationManager = new ConfigurationManager(this);
         }
         this.configurationManager.reload(this.configurations(), sender);
+        if (sender != null) {
+            this.checkUpdate();
+        }
+    }
+
+    @SuppressWarnings({"deprecation", "UnstableApiUsage"})
+    private CompletableFuture<PluginVersion> requestVersion() {
+        CompletableFuture<PluginVersion> future = new CompletableFuture<>();
+        Log log = this.getLog();
+        PluginVersion version = new PluginVersion();
+
+        if (Scheduler.isFolia()) {
+            version.setCurrentVersion(this.getPluginMeta().getVersion());
+        } else {
+            version.setCurrentVersion(this.getDescription().getVersion());
+        }
+
+        String apiUrl = "https://api.github.com/repos/SuperArilo/" + this.getName().toUpperCase() + "/releases/latest";
+        Request request = new Request.Builder()
+                .url(apiUrl)
+                .header("Accept", "application/vnd.github.v3+json")
+                .build();
+
+        this.httpClient.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                log.error("Failed to check for updates (network/timeout)", e);
+                future.complete(version);
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
+                try (response) {
+                    if (!response.isSuccessful()) {
+                        if (response.code() == 429) {
+                            log.warn("github api rate limit exceeded, please try again later.");
+                        } else {
+                            log.warn("update check failed, http status code: {}", response.code());
+                        }
+                    } else {
+                        String body = response.body().string();
+                        if (body.isEmpty()) {
+                            log.warn("github api returned empty response");
+                        } else {
+                            String tag = JsonParser.parseString(body).getAsJsonObject().get("tag_name").getAsString();
+                            version.setRemoteVersion(tag.startsWith("v") ? tag.substring(1) : tag);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Error parsing update response", e);
+                } finally {
+                    future.complete(version);
+                }
+            }
+        });
+
+        return future;
+    }
+
+    public void checkUpdate() {
+        this.requestVersion().thenAcceptAsync(s -> {
+
+            ComparableVersion current = new ComparableVersion(s.getCurrentVersion());
+            ComparableVersion remote = new ComparableVersion(s.getRemoteVersion());
+            int compare = current.compareTo(remote);
+
+            if (compare < 0) {
+                log.info("=========================================");
+                log.info("new version available: ", s.getRemoteVersion());
+                log.info("current version: " + s.getCurrentVersion());
+                log.info("=========================================");
+            } else if (compare > 0) {
+                log.info("You are using a development version ({}) which is newer than the latest release ({}).", s.getCurrentVersion(), s.getRemoteVersion());
+            } else {
+                log.info("plugin is up to date now.");
+            }
+
+        }).exceptionallyAsync(i -> {
+            this.getLog().error(i);
+            return null;
+        });
     }
 
 }
