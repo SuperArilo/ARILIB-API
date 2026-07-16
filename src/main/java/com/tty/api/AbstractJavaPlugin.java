@@ -4,6 +4,7 @@ import com.google.gson.JsonParser;
 import com.tty.api.dto.PluginVersion;
 import com.tty.api.dto.TempRegisterService;
 import com.tty.api.configuration.BaseConfiguration;
+import com.tty.api.scheduler.Scheduler;
 import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;

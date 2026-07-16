@@ -1,9 +1,6 @@
 package com.tty.api.scheduler;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.Scheduler;
-import com.tty.api.task.CancellableTask;
-import com.tty.api.task.WrapperScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -11,111 +8,106 @@ import org.bukkit.entity.Entity;
 import org.bukkit.scheduler.BukkitTask;
 import java.util.function.Consumer;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 public record BukkitScheduler(AbstractJavaPlugin plugin) implements Scheduler {
 
     @Override
-    public CancellableTask run(Consumer<CancellableTask> task) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTask(this.plugin, () -> task.accept(atomicReference.get()))));
-        return atomicReference.get();
+    public RunTask run(Consumer<RunTask> task) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTask(this.plugin, () -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntity(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
+    public RunTask runAtEntity(Entity entity, Consumer<RunTask> task, Runnable errorCallback) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
         BukkitTask bukkitTask = Bukkit.getScheduler().runTask(this.plugin, () -> {
             try {
-                task.accept(new WrapperScheduledTask<>(atomicReference.get()));
+                task.accept(wrapper);
             } catch (Exception e) {
-                if (errorCallback == null) return;
-                errorCallback.run();
+                if (errorCallback != null) errorCallback.run();
             }
         });
-        atomicReference.set(new WrapperScheduledTask<>(bukkitTask));
-        return atomicReference.get();
+        wrapper.setTask(bukkitTask);
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntityLater(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback, long delay) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
+    public RunTask runAtEntityLater(Entity entity, Consumer<RunTask> task, Runnable errorCallback, long delay) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
         BukkitTask bukkitTask = Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
             try {
-                task.accept(new WrapperScheduledTask<>(atomicReference.get()));
+                task.accept(wrapper);
             } catch (Exception e) {
-                if (errorCallback == null) return;
-                errorCallback.run();
+                if (errorCallback != null) errorCallback.run();
             }
         }, delay);
-        atomicReference.set(new WrapperScheduledTask<>(bukkitTask));
-        return atomicReference.get();
+        wrapper.setTask(bukkitTask);
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntityFixedRate(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback, long delay, long rate) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
+    public RunTask runAtEntityFixedRate(Entity entity, Consumer<RunTask> task, Runnable errorCallback, long delay, long rate) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
         BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             try {
-                task.accept(atomicReference.get());
+                task.accept(wrapper);
             } catch (Exception e) {
-                if (errorCallback == null) return;
-                errorCallback.run();
+                if (errorCallback != null) errorCallback.run();
             }
         }, delay, rate);
-        atomicReference.set(new WrapperScheduledTask<>(bukkitTask));
-        return atomicReference.get();
+        wrapper.setTask(bukkitTask);
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtFixedRate(Consumer<CancellableTask> task, long delay, long rate) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> task.accept(atomicReference.get()), delay, rate)));
-        return atomicReference.get();
+    public RunTask runAtFixedRate(Consumer<RunTask> task, long delay, long rate) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> task.accept(wrapper), delay, rate));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAsync(Consumer<CancellableTask> task) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> task.accept(atomicReference.get()))));
-        return atomicReference.get();
+    public RunTask runAsync(Consumer<RunTask> task) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskAsynchronously(this.plugin, () -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAsyncAtFixedRate(Consumer<CancellableTask> task, long delay, long rate) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, () -> task.accept(atomicReference.get()), delay, rate)));
-        return atomicReference.get();
+    public RunTask runAsyncAtFixedRate(Consumer<RunTask> task, long delay, long rate) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, () -> task.accept(wrapper), delay, rate));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtRegion(Location loc, Consumer<CancellableTask> task) {
+    public RunTask runAtRegion(Location loc, Consumer<RunTask> task) {
         return this.run(task);
     }
 
     @Override
-    public CancellableTask runAtRegionLater(Location loc, Consumer<CancellableTask> task, long later) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskLater(this.plugin, () -> task.accept(atomicReference.get()), later)));
-        return atomicReference.get();
+    public RunTask runAtRegionLater(Location loc, Consumer<RunTask> task, long later) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskLater(this.plugin, () -> task.accept(wrapper), later));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtRegion(World world, int chunkX, int chunkZ, Consumer<CancellableTask> task) {
+    public RunTask runAtRegion(World world, int chunkX, int chunkZ, Consumer<RunTask> task) {
         return this.run(task);
     }
 
     @Override
-    public CancellableTask runAsyncDelayed(Consumer<CancellableTask> task, long delay) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> task.accept(atomicReference.get()), delay)));
-        return atomicReference.get();
+    public RunTask runAsyncDelayed(Consumer<RunTask> task, long delay) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> task.accept(wrapper), delay));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runLater(Consumer<CancellableTask> task, long delayTicks) {
-        AtomicReference<WrapperScheduledTask<BukkitTask>> atomicReference = new AtomicReference<>();
-        atomicReference.set(new WrapperScheduledTask<>(Bukkit.getScheduler().runTaskLater(this.plugin, () -> task.accept(atomicReference.get()), delayTicks)));
-        return atomicReference.get();
+    public RunTask runLater(Consumer<RunTask> task, long delayTicks) {
+        WrapperRunTask<BukkitTask> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getScheduler().runTaskLater(this.plugin, () -> task.accept(wrapper), delayTicks));
+        return wrapper;
     }
 }

@@ -1,7 +1,7 @@
 package com.tty.api.state;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.task.CancellableTask;
+import com.tty.api.scheduler.RunTask;
 import lombok.Getter;
 import org.bukkit.entity.Entity;
 
@@ -30,7 +30,7 @@ public abstract class StateService<T extends State> {
     private final boolean isAsync;
 
     private final Object lock = new Object();
-    private volatile CancellableTask task;
+    private volatile RunTask runTask;
 
     private final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
 
@@ -47,7 +47,7 @@ public abstract class StateService<T extends State> {
         }
     }
 
-    private CancellableTask createTask(long rate, long c, boolean isAsync) {
+    private RunTask createTask(long rate, long c, boolean isAsync) {
         if (isAsync) {
             return this.plugin.getScheduler().runAsyncAtFixedRate(i -> this.execute(), c, rate);
         } else {
@@ -59,9 +59,9 @@ public abstract class StateService<T extends State> {
         if (this.stateList.isEmpty()) {
             synchronized (this.lock) {
                 if (this.stateList.isEmpty()) {
-                    if (this.task != null) {
-                        this.task.cancel();
-                        this.task = null;
+                    if (this.runTask != null) {
+                        this.runTask.cancel();
+                        this.runTask = null;
                     }
                 }
             }
@@ -110,9 +110,9 @@ public abstract class StateService<T extends State> {
     public void abort() {
         synchronized (this.stateList) {
             synchronized (this.lock) {
-                if (this.task != null) {
-                    this.task.cancel();
-                    this.task = null;
+                if (this.runTask != null) {
+                    this.runTask.cancel();
+                    this.runTask = null;
                 }
             }
             for (T i : this.stateList) {
@@ -132,8 +132,8 @@ public abstract class StateService<T extends State> {
             this.passAddState(state);
 
             synchronized (this.lock) {
-                if (task == null) {
-                    this.task = this.createTask(this.rate, this.c, this.isAsync);
+                if (runTask == null) {
+                    this.runTask = this.createTask(this.rate, this.c, this.isAsync);
                 }
             }
             return true;

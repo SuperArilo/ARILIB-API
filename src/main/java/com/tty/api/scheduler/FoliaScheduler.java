@@ -1,80 +1,98 @@
 package com.tty.api.scheduler;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.Scheduler;
-import com.tty.api.task.CancellableTask;
-import com.tty.api.task.WrapperScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 
 import java.util.function.Consumer;
-
 import java.util.concurrent.TimeUnit;
-
 
 public record FoliaScheduler(AbstractJavaPlugin plugin) implements Scheduler {
 
-
     @Override
-    public CancellableTask run(Consumer<CancellableTask> task) {
-        return new WrapperScheduledTask<>(Bukkit.getGlobalRegionScheduler().run(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i))));
+    public RunTask run(Consumer<RunTask> task) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getGlobalRegionScheduler().run(this.plugin, i -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntity(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback) {
-        return new WrapperScheduledTask<>(entity.getScheduler().run(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), errorCallback));
+    public RunTask runAtEntity(Entity entity, Consumer<RunTask> task, Runnable errorCallback) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(entity.getScheduler().run(this.plugin, i -> task.accept(wrapper), errorCallback));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntityLater(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback, long delay) {
-        return new WrapperScheduledTask<>(entity.getScheduler().runDelayed(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), errorCallback, delay));
+    public RunTask runAtEntityLater(Entity entity, Consumer<RunTask> task, Runnable errorCallback, long delay) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(entity.getScheduler().runDelayed(this.plugin, i -> task.accept(wrapper), errorCallback, delay));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtEntityFixedRate(Entity entity, Consumer<CancellableTask> task, Runnable errorCallback, long delay, long rate) {
-        return new WrapperScheduledTask<>(entity.getScheduler().runAtFixedRate(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), errorCallback, delay, rate));
+    public RunTask runAtEntityFixedRate(Entity entity, Consumer<RunTask> task, Runnable errorCallback, long delay, long rate) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(entity.getScheduler().runAtFixedRate(this.plugin, i -> task.accept(wrapper), errorCallback, delay, rate));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtFixedRate(Consumer<CancellableTask> task, long delay, long rate) {
-        return new WrapperScheduledTask<>(Bukkit.getGlobalRegionScheduler().runAtFixedRate(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), delay, rate));
+    public RunTask runAtFixedRate(Consumer<RunTask> task, long delay, long rate) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getGlobalRegionScheduler().runAtFixedRate(this.plugin, i -> task.accept(wrapper), delay, rate));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAsync(Consumer<CancellableTask> task) {
-        return new WrapperScheduledTask<>(Bukkit.getAsyncScheduler().runNow(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i))));
+    public RunTask runAsync(Consumer<RunTask> task) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getAsyncScheduler().runNow(this.plugin, i -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAsyncAtFixedRate(Consumer<CancellableTask> task, long delay, long rate) {
-        return new WrapperScheduledTask<>(Bukkit.getAsyncScheduler().runAtFixedRate(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), delay * 50, rate * 50, TimeUnit.MILLISECONDS));
+    public RunTask runAsyncAtFixedRate(Consumer<RunTask> task, long delay, long rate) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getAsyncScheduler().runAtFixedRate(this.plugin, i -> task.accept(wrapper), delay * 50, rate * 50, TimeUnit.MILLISECONDS));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtRegion(Location loc, Consumer<CancellableTask> task) {
-        return new WrapperScheduledTask<>(Bukkit.getRegionScheduler().run(this.plugin, loc, i -> task.accept(new WrapperScheduledTask<>(i))));
+    public RunTask runAtRegion(Location loc, Consumer<RunTask> task) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getRegionScheduler().run(this.plugin, loc, i -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtRegionLater(Location loc, Consumer<CancellableTask> task, long later) {
-        return new WrapperScheduledTask<>(Bukkit.getRegionScheduler().runDelayed(this.plugin, loc, i -> task.accept(new WrapperScheduledTask<>(i)), later));
+    public RunTask runAtRegionLater(Location loc, Consumer<RunTask> task, long later) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getRegionScheduler().runDelayed(this.plugin, loc, i -> task.accept(wrapper), later));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAtRegion(World world, int chunkX, int chunkZ, Consumer<CancellableTask> task) {
-        return new WrapperScheduledTask<>(Bukkit.getRegionScheduler().run(this.plugin, world, chunkX, chunkZ, i -> task.accept(new WrapperScheduledTask<>(i))));
+    public RunTask runAtRegion(World world, int chunkX, int chunkZ, Consumer<RunTask> task) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getRegionScheduler().run(this.plugin, world, chunkX, chunkZ, i -> task.accept(wrapper)));
+        return wrapper;
     }
 
     @Override
-    public CancellableTask runAsyncDelayed(Consumer<CancellableTask> task, long delay) {
-        return new WrapperScheduledTask<>(Bukkit.getAsyncScheduler().runDelayed(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), delay * 50, TimeUnit.MILLISECONDS));
+    public RunTask runAsyncDelayed(Consumer<RunTask> task, long delay) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getAsyncScheduler().runDelayed(this.plugin, i -> task.accept(wrapper), delay * 50, TimeUnit.MILLISECONDS));
+        return wrapper;
     }
-
 
     @Override
-    public CancellableTask runLater(Consumer<CancellableTask> task, long delayTicks) {
-        return new WrapperScheduledTask<>(Bukkit.getGlobalRegionScheduler().runDelayed(this.plugin, i -> task.accept(new WrapperScheduledTask<>(i)), delayTicks));
+    public RunTask runLater(Consumer<RunTask> task, long delayTicks) {
+        WrapperRunTask<Object> wrapper = new WrapperRunTask<>();
+        wrapper.setTask(Bukkit.getGlobalRegionScheduler().runDelayed(this.plugin, i -> task.accept(wrapper), delayTicks));
+        return wrapper;
     }
+
 }
