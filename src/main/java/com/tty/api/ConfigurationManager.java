@@ -2,6 +2,7 @@ package com.tty.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.tty.api.configuration.AllowDownloadConfiguration;
 import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
@@ -73,8 +74,14 @@ public class ConfigurationManager {
         return (T) configuration;
     }
 
-    public <T> T deepCopy(T obj, Type typeOfT) {
-        return this.gson.fromJson(this.gson.toJson(obj), typeOfT);
+    public @Nullable <T> T deepCopy(T obj, Type typeOfT) {
+        try {
+            return this.gson.fromJson(this.gson.toJson(obj), typeOfT);
+        } catch (JsonSyntaxException e) {
+            this.plugin.getLog().error(e);
+            return null;
+        }
+
     }
 
     public <T> T yamlConvertToObj(String rawYamlString, Type type) {
