@@ -19,7 +19,6 @@
 
         <projectlombok.version>1.18.36</projectlombok.version>
         <maven-artifact.version>3.9.6</maven-artifact.version>
-        <projectlombok.version>1.18.36</projectlombok.version>
         <placeholderapi.version>2.11.6</placeholderapi.version>
         <VaultAPI.version>1.7.1</VaultAPI.version>
         <mybatisplus.version>3.5.15</mybatisplus.version>
