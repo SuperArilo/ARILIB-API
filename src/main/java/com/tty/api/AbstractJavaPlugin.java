@@ -79,7 +79,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        this.doReloadAllFiles(null);
+        this.reload(null);
 
         this.componentTool = new ComponentTool(this);
         this.executorSync = task -> this.scheduler.run(i -> task.run());
@@ -150,7 +150,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Nullable protected abstract List<StateService<?>> services();
 
-    public void doReloadAllFiles(@Nullable CommandSender sender) {
+    public void reload(@Nullable CommandSender sender) {
         this.saveDefaultConfig();
         this.reloadConfig();
 
