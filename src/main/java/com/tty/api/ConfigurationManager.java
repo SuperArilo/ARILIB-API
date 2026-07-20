@@ -100,7 +100,6 @@ public class ConfigurationManager {
     }
 
     protected void reload(@Nullable List<BaseConfiguration> list, @Nullable CommandSender sender) {
-        this.configurationMap.clear();
         boolean overwrite = this.plugin.getConfig().getBoolean("debug.overwrite-file");
         if (list == null) return;
         AtomicInteger count = new AtomicInteger(0);
@@ -254,7 +253,6 @@ public class ConfigurationManager {
             }
         });
     }
-
 
     public synchronized void saveAllFiles() {
         this.configurationMap.forEach((k, v) -> {
