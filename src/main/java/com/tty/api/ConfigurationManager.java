@@ -245,7 +245,7 @@ public class ConfigurationManager {
 
                     double local = download.getVersion();
                     if (remote > local) {
-                        plugin.getLog().info("can update - file: {}  local: {}  remote: {}", download.getPath(), local, remote);
+                        plugin.getLog().info("update available - file: {} local: {} remote: {}", download.getPath(), local, remote);
                     }
                 } catch (IOException e) {
                     plugin.getLog().error(e);

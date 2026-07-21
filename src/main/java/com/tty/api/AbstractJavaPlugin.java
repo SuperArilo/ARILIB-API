@@ -75,7 +75,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         if(VersionUtil.isServerVersionLowerThan("1.21")) {
-            log.error("server version is too low. This plugin requires at least 1.21. Disabling plugin...");
+            log.error("server version is too low. This plugin requires at least 1.21. disabling plugin...");
             this.getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -161,7 +161,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                 double defaultVersion = defaultConfig.getDouble("version", 1.0);
                 double currentVersion = this.getConfig().getDouble("version", 0);
                 if (currentVersion < defaultVersion) {
-                    this.getLog().info("Your config.yml is outdated (v{}). Please delete it to regenerate the latest version (v{})", currentVersion, defaultVersion);
+                    this.getLog().info("your config.yml is outdated v{}. please delete it to regenerate the latest version v{}", currentVersion, defaultVersion);
                 }
             }
         } catch (IOException e) {
@@ -201,7 +201,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.httpClient.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                log.error("Failed to check for updates (network/timeout)", e);
+                log.error("failed to check for updates (network/timeout)", e);
                 future.complete(version);
             }
 
@@ -224,7 +224,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error parsing update response", e);
+                    log.error("error parsing update response", e);
                 } finally {
                     future.complete(version);
                 }
