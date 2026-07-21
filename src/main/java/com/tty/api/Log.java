@@ -76,6 +76,10 @@ public class Log {
         this.log(Level.SEVERE, throwable, msg, args);
     }
 
+    public void debug(Throwable throwable) {
+        this.log(Level.INFO, throwable, null);
+    }
+
     public void debug(String msg, Object... args) {
         if (!this.debug) return;
         this.log(Level.INFO, PREFIX_DEBUG + this.wrapCaller(msg), args);

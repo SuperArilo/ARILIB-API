@@ -4,7 +4,7 @@ import com.tty.api.dto.ComponentListPage;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.lang.reflect.Type;
 
 public interface ConfigDataService {

@@ -78,13 +78,13 @@ public class ConfigurationManager {
         try {
             return this.gson.fromJson(this.gson.toJson(obj), typeOfT);
         } catch (JsonSyntaxException e) {
-            this.plugin.getLog().error(e);
+            this.plugin.getLog().debug(e);
             return null;
         }
 
     }
 
-    public <T> T yamlConvertToObj(String rawYamlString, Type type) {
+    public @Nullable <T> T yamlConvertToObj(String rawYamlString, Type type) {
         Object intermediateObj = new Yaml(this.loaderOptions).load(rawYamlString);
         if (intermediateObj instanceof Map || intermediateObj instanceof List) {
             try {
@@ -97,6 +97,27 @@ public class ConfigurationManager {
             return this.gson.fromJson(this.gson.toJsonTree(intermediateObj), type);
         }
 
+    }
+
+    public @Nullable <T> T convertTo(Object raw, Type type) {
+        try {
+            if (raw instanceof String) {
+                return this.gson.fromJson((String) raw, type);
+            }
+            return this.gson.fromJson(this.gson.toJson(raw), type);
+        } catch (JsonSyntaxException e) {
+            this.plugin.getLog().debug(e);
+            return null;
+        }
+    }
+
+    public @Nullable String jsonToString(Object raw) {
+        try {
+            return this.gson.toJson(raw);
+        } catch (Exception e) {
+            this.plugin.getLog().debug(e);
+            return null;
+        }
     }
 
     protected void reload(@Nullable List<BaseConfiguration> list, @Nullable CommandSender sender) {
