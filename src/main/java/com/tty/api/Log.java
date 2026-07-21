@@ -77,7 +77,8 @@ public class Log {
     }
 
     public void debug(Throwable throwable) {
-        this.log(Level.INFO, throwable, null);
+        if (!this.debug) return;
+        this.log(Level.INFO, throwable, PREFIX_DEBUG);
     }
 
     public void debug(String msg, Object... args) {
