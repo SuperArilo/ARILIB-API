@@ -21,10 +21,10 @@
         <maven-artifact.version>3.9.6</maven-artifact.version>
         <placeholderapi.version>2.11.6</placeholderapi.version>
         <VaultAPI.version>1.7.1</VaultAPI.version>
-        <mybatisplus.version>3.5.15</mybatisplus.version>
+        <mybatisplus.version>3.5.17</mybatisplus.version>
         <okhttp.version>5.4.0</okhttp.version>
         <okhttp-jvm.version>5.4.0</okhttp-jvm.version>
-        <caffeine.version>3.2.3</caffeine.version>
+        <caffeine.version>3.2.4</caffeine.version>
         <item-nbt-api.version>2.15.5</item-nbt-api.version>
         <snakeyaml.version>2.2</snakeyaml.version>
     </properties>
