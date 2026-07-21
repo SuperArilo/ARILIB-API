@@ -106,7 +106,6 @@ public class ConfigurationManager {
             }
             return this.gson.fromJson(this.gson.toJson(raw), type);
         } catch (JsonSyntaxException e) {
-            this.plugin.getLog().debug(e);
             return null;
         }
     }
@@ -115,7 +114,6 @@ public class ConfigurationManager {
         try {
             return this.gson.toJson(raw);
         } catch (Exception e) {
-            this.plugin.getLog().debug(e);
             return null;
         }
     }
