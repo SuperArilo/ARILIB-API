@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import java.text.DecimalFormat;
 
@@ -52,68 +53,116 @@ public class FormatUtils {
      */
     public static Location parseLocation(String locString) {
         if (locString == null || locString.isEmpty()) {
-            throw new IllegalArgumentException("Location string is null or empty!");
+            throw new IllegalArgumentException("location string is null or empty!");
         }
 
-        // 去掉 Location{...} 外层
         if (locString.startsWith("Location{") && locString.endsWith("}")) {
             locString = locString.substring(9, locString.length() - 1);
         }
 
-        String worldName = null;
+        String instance = null;
         double x = 0, y = 0, z = 0;
         float pitch = 0, yaw = 0;
 
-        int len = locString.length();
+        int length = locString.length();
         int i = 0;
 
-        while (i < len) {
-            // 找 key
+        while (i < length) {
             int eqIdx = locString.indexOf('=', i);
             if (eqIdx < 0) break;
 
             String key = locString.substring(i, eqIdx).trim();
-
-            // 找 value 结束位置
-            int valEnd = locString.indexOf(',', eqIdx + 1);
-            if (valEnd < 0) valEnd = len;
-
-            String value = locString.substring(eqIdx + 1, valEnd).trim();
+            int valueEnd = locString.indexOf(',', eqIdx + 1);
+            if (valueEnd < 0) valueEnd = length;
+            String value = locString.substring(eqIdx + 1, valueEnd).trim();
 
             switch (key) {
-                case "world":
-                    // 支持 CraftWorld{name=world}
-                    if (value.startsWith("CraftWorld")) {
-                        int nameIdx = value.indexOf("name=");
-                        if (nameIdx >= 0) {
-                            int nameStart = nameIdx + 5;
-                            int nameEnd = value.indexOf('}', nameStart);
-                            if (nameEnd < 0) nameEnd = value.length();
-                            worldName = value.substring(nameStart, nameEnd);
+                case "world": {
+                    if (value.startsWith("CraftWorld{") && value.endsWith("}")) {
+                        String inner = value.substring(11, value.length() - 1);
+                        int keyIndex = inner.indexOf("key=");
+                        int nameIndex = inner.indexOf("name=");
+                        int startIndex = -1;
+                        if (keyIndex >= 0) startIndex = keyIndex + 4;
+                        else if (nameIndex >= 0) startIndex = nameIndex + 5;
+                        if (startIndex >= 0) {
+                            int endIdx = inner.indexOf(',', startIndex);
+                            if (endIdx < 0) endIdx = inner.indexOf('}', startIndex);
+                            if (endIdx < 0) endIdx = inner.length();
+                            instance = inner.substring(startIndex, endIdx).trim();
                         } else {
-                            worldName = value;
+                            instance = value;
                         }
                     } else {
-                        worldName = value;
+                        instance = value;
                     }
                     break;
-                case "x": x = Double.parseDouble(value); break;
-                case "y": y = Double.parseDouble(value); break;
-                case "z": z = Double.parseDouble(value); break;
-                case "pitch": pitch = Float.parseFloat(value); break;
-                case "yaw": yaw = Float.parseFloat(value); break;
+                }
+                case "x": {
+                    try {
+                        x = Double.parseDouble(value);
+                    }
+                    catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("invalid x: " + value, e);
+                    }
+                    break;
+                }
+                case "y": {
+                    try {
+                        y = Double.parseDouble(value);
+                    }
+                    catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("invalid y: " + value, e);
+                    }
+                    break;
+                }
+                case "z": {
+                    try {
+                        z = Double.parseDouble(value);
+                    }
+                    catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("invalid z: " + value, e);
+                    }
+                    break;
+                }
+                case "pitch": {
+                    try {
+                        pitch = Float.parseFloat(value);
+                    }
+                    catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("invalid pitch: " + value, e);
+                    }
+                    break;
+                }
+                case "yaw": {
+                    try {
+                        yaw = Float.parseFloat(value);
+                    }
+                    catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("invalid yaw: " + value, e);
+                    }
+                    break;
+                }
             }
-
-            i = valEnd + 1;
+            i = valueEnd + 1;
         }
 
-        if (worldName == null) {
-            throw new IllegalArgumentException("World not found in location string: " + locString);
+        if (instance == null) {
+            throw new IllegalArgumentException("world field missing");
         }
 
-        World world = Bukkit.getWorld(worldName);
+        World world = null;
+        if (instance.contains(":")) {
+            NamespacedKey key = NamespacedKey.fromString(instance);
+            if (key != null) {
+                world = Bukkit.getServer().getWorld(key);
+            }
+        }
         if (world == null) {
-            throw new IllegalArgumentException("World not found on server: " + worldName);
+            world = Bukkit.getServer().getWorld(instance);
+        }
+        if (world == null) {
+            throw new IllegalArgumentException("world not found: " + instance);
         }
 
         return new Location(world, x, y, z, yaw, pitch);
