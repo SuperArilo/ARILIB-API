@@ -106,26 +106,19 @@ public class ComponentTool {
         return text(content).hoverEvent(HoverEvent.showText(text(showText)));
     }
 
-    public CompletableFuture<Component> setHoverItemText(ItemStack itemStack) {
-        CompletableFuture<Component> future = new CompletableFuture<>();
-        this.plugin.getScheduler().run(i -> {
-            if (itemStack == null || itemStack.isEmpty()) {
-                future.complete(Component.empty());
-            } else {
-                future.complete(itemStack.displayName().hoverEvent(itemStack.asHoverEvent(showItem -> showItem)));
-            }
-        });
-        return future;
+    public Component setHoverItemText(ItemStack itemStack) {
+        if (itemStack == null || itemStack.isEmpty()) {
+            return Component.empty();
+        } else {
+            return itemStack.displayName().hoverEvent(itemStack.asHoverEvent(showItem -> showItem));
+        }
     }
 
-    public CompletableFuture<Component> setEntityHoverText(@Nullable Entity entity) {
-        CompletableFuture<Component> future = new CompletableFuture<>();
+    public Component setEntityHoverText(@Nullable Entity entity) {
         if (entity == null) {
-            future.complete(Component.empty());
-            return future;
+            return Component.empty();
         }
-        this.plugin.getScheduler().runAtRegion(entity.getLocation(), i -> future.complete(Component.empty().append(entity.name()).hoverEvent(HoverEvent.showText(Component.text(entity.getType().key().asString())))));
-        return future;
+        return Component.empty().append(entity.name()).hoverEvent(HoverEvent.showText(Component.text(entity.getType().key().asString())));
     }
 
     @SuppressWarnings("PatternValidation")
