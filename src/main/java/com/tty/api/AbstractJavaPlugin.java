@@ -81,7 +81,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         }
         this.reload(null);
 
-        this.componentTool = new ComponentTool(this);
+        this.componentTool = new ComponentTool();
         this.executorSync = task -> this.scheduler.run(i -> task.run());
         this.executorAsync = task -> this.scheduler.runAsync(i -> task.run());
 

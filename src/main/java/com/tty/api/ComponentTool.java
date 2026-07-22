@@ -23,16 +23,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 public class ComponentTool {
 
     private final MiniMessage MM = MiniMessage.miniMessage();
-    private final AbstractJavaPlugin plugin;
-
-    public ComponentTool(AbstractJavaPlugin plugin) {
-        this.plugin = plugin;
-    }
 
     public TextComponent text(@Nullable String content) {
         return build(null, content, null);
