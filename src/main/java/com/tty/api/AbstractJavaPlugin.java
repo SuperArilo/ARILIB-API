@@ -60,9 +60,6 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     private NbtManager nbtManager;
 
     @Getter
-    private ComponentTool componentTool;
-
-    @Getter
     private StatusManager statusManager;
 
     @Override
@@ -80,8 +77,6 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             return;
         }
         this.reload(null);
-
-        this.componentTool = new ComponentTool();
         this.executorSync = task -> this.scheduler.run(i -> task.run());
         this.executorAsync = task -> this.scheduler.runAsync(i -> task.run());
 

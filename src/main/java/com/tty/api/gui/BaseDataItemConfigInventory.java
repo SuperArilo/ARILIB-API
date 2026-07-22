@@ -1,6 +1,7 @@
 package com.tty.api.gui;
 
 import com.tty.api.AbstractJavaPlugin;
+import com.tty.api.ComponentTool;
 import com.tty.api.dto.PageResult;
 import com.tty.api.dto.gui.BaseDataMenu;
 import com.tty.api.dto.gui.PageDisable;
@@ -206,7 +207,7 @@ public abstract class BaseDataItemConfigInventory<T> extends BaseConfigInventory
         try {
             ItemStack itemStack = this.createItemStack(pageDisable.getMaterial().toUpperCase());
             ItemMeta itemMeta = itemStack.getItemMeta();
-            itemMeta.displayName(this.getPlugin().getComponentTool().text(pageDisable.getName()));
+            itemMeta.displayName(ComponentTool.text(pageDisable.getName()));
             itemStack.setItemMeta(itemMeta);
             for (Integer slot : slots) {
                 this.getInventory().setItem(slot, itemStack);

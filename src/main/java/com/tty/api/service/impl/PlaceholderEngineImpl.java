@@ -1,6 +1,7 @@
 package com.tty.api.service.impl;
 
 import com.tty.api.AbstractJavaPlugin;
+import com.tty.api.ComponentTool;
 import com.tty.api.service.placeholder.PlaceholderEngine;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
 import lombok.Getter;
@@ -41,7 +42,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         }
 
         if (futures.isEmpty()) {
-            return CompletableFuture.completedFuture(this.plugin.getComponentTool().text(template, context, Collections.emptyMap()));
+            return CompletableFuture.completedFuture(ComponentTool.text(template, context, Collections.emptyMap()));
         }
 
         CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
@@ -49,7 +50,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         return CompletableFuture.allOf(all).thenApplyAsync(v -> {
             Map<String, Component> resolved = new HashMap<>(futures.size());
             futures.forEach((k, f) -> resolved.put(k, f.join()));
-            return this.plugin.getComponentTool().text(template, context, resolved);
+            return ComponentTool.text(template, context, resolved);
         }, this.plugin.getExecutorAsync());
     }
 
@@ -72,7 +73,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         if (futures.isEmpty()) {
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.plugin.getComponentTool().text(line, context, Collections.emptyMap()));
+                components.add(ComponentTool.text(line, context, Collections.emptyMap()));
             }
             return CompletableFuture.completedFuture(Component.join(JoinConfiguration.separator(Component.newline()), components));
         }
@@ -84,7 +85,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             futures.forEach((k, f) -> resolved.put(k, f.join()));
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.plugin.getComponentTool().text(line, context, resolved));
+                components.add(ComponentTool.text(line, context, resolved));
             }
             return Component.join(JoinConfiguration.separator(Component.newline()), components);
         }, this.plugin.getExecutorAsync());
@@ -109,7 +110,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         if (futures.isEmpty()) {
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.plugin.getComponentTool().text(line, context, Collections.emptyMap()));
+                components.add(ComponentTool.text(line, context, Collections.emptyMap()));
             }
             return CompletableFuture.completedFuture(components);
         }
@@ -121,7 +122,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
             List<Component> components = new ArrayList<>(list.size());
             for (String line : list) {
-                components.add(this.plugin.getComponentTool().text(line, context, resolved));
+                components.add(ComponentTool.text(line, context, resolved));
             }
             return components;
         }, this.plugin.getExecutorAsync());

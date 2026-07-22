@@ -26,33 +26,33 @@ import java.util.Objects;
 
 public class ComponentTool {
 
-    private final MiniMessage MM = MiniMessage.miniMessage();
+    private static final MiniMessage MM = MiniMessage.miniMessage();
 
-    public TextComponent text(@Nullable String content) {
+    public static TextComponent text(@Nullable String content) {
         return build(null, content, null);
     }
 
-    public TextComponent text(@Nullable String content, Map<String, Component> placeholders) {
+    public static TextComponent text(@Nullable String content, Map<String, Component> placeholders) {
         return build(null, content, placeholders);
     }
 
-    public TextComponent text(@Nullable String content, OfflinePlayer player) {
+    public static TextComponent text(@Nullable String content, OfflinePlayer player) {
         return build(player, content, null);
     }
 
-    public TextComponent text(@Nullable String content, OfflinePlayer player, Map<String, Component> placeholders) {
+    public static TextComponent text(@Nullable String content, OfflinePlayer player, Map<String, Component> placeholders) {
         return build(player, content, placeholders);
     }
 
-    public Component textList(List<String> list, Map<String, Component> placeholders) {
+    public static Component textList(List<String> list, Map<String, Component> placeholders) {
         return Component.join(JoinConfiguration.separator(Component.newline()), list.stream().map(s -> text(s, placeholders)).toList());
     }
 
-    public Component textList(List<String> list) {
+    public static Component textList(List<String> list) {
         return textList(list, null);
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
+    public static Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title),
                 text(subTitle),
@@ -60,7 +60,7 @@ public class ComponentTool {
         );
     }
 
-    public Title setPlayerTitle(@NotNull Component title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
+    public static Title setPlayerTitle(@NotNull Component title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 title,
                 subTitle,
@@ -68,7 +68,7 @@ public class ComponentTool {
         );
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
+    public static Title setPlayerTitle(@NotNull String title, @NotNull Component subTitle, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title),
                 subTitle,
@@ -76,7 +76,7 @@ public class ComponentTool {
         );
     }
 
-    public Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Map<String, Component> placeholders, Duration fadeIn, Duration stay, Duration fadeOut) {
+    public static Title setPlayerTitle(@NotNull String title, @NotNull String subTitle, Map<String, Component> placeholders, Duration fadeIn, Duration stay, Duration fadeOut) {
         return Title.title(
                 text(title, placeholders),
                 text(subTitle, placeholders),
@@ -84,23 +84,23 @@ public class ComponentTool {
         );
     }
 
-    public Component setClickEventText(Component component, ClickEvent event) {
+    public static Component setClickEventText(Component component, ClickEvent event) {
         return component.clickEvent(event);
     }
 
-    public TextComponent setClickEventText(String content, ClickEvent event) {
+    public static TextComponent setClickEventText(String content, ClickEvent event) {
         return text(content).clickEvent(event);
     }
 
-    public TextComponent setClickEventText(String content, Map<String, Component> placeholders, ClickEvent event) {
+    public static TextComponent setClickEventText(String content, Map<String, Component> placeholders, ClickEvent event) {
         return text(content, placeholders).clickEvent(event);
     }
 
-    public TextComponent setHoverText(String content, String showText) {
+    public static TextComponent setHoverText(String content, String showText) {
         return text(content).hoverEvent(HoverEvent.showText(text(showText)));
     }
 
-    public Component setHoverItemText(ItemStack itemStack) {
+    public static Component setHoverItemText(ItemStack itemStack) {
         if (itemStack == null || itemStack.isEmpty()) {
             return Component.empty();
         } else {
@@ -108,7 +108,7 @@ public class ComponentTool {
         }
     }
 
-    public Component setEntityHoverText(@Nullable Entity entity) {
+    public static Component setEntityHoverText(@Nullable Entity entity) {
         if (entity == null) {
             return Component.empty();
         }
@@ -116,7 +116,7 @@ public class ComponentTool {
     }
 
     @SuppressWarnings("PatternValidation")
-    private TextComponent build(OfflinePlayer player,@Nullable String template, Map<String, Component> placeholders) {
+    private static TextComponent build(OfflinePlayer player,@Nullable String template, Map<String, Component> placeholders) {
         if (template == null) {
             template = "";
         }
@@ -138,7 +138,7 @@ public class ComponentTool {
             resolver = builder.build();
         }
 
-        Component comp = this.MM.deserialize(template, resolver);
+        Component comp = MM.deserialize(template, resolver);
         if (comp instanceof TextComponent tc) {
             return tc.decoration(TextDecoration.ITALIC, false);
         }
