@@ -234,11 +234,11 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.version = s;
             if (s.hasNewVersion()) {
                 log.info("=========================================");
-                log.info("new version available: ", s.getRemoteVersion());
-                log.info("current version: " + s.getCurrentVersion());
+                log.info("发现新版本: {}", s.getRemoteVersion());
+                log.info("当前版本: {}", s.getCurrentVersion());
                 log.info("=========================================");
             } else {
-                log.info("plugin is up to date now.");
+                log.info("插件已是最新版本。");
             }
         }).exceptionallyAsync(i -> {
             this.getLog().error(i);
