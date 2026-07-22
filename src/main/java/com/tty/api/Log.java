@@ -3,7 +3,6 @@ package com.tty.api;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 
 public class Log {
@@ -16,24 +15,14 @@ public class Log {
     @Setter
     private volatile boolean debug = false;
 
-    private final static String PREFIX_DEBUG = "[DEBUG] ";
-    private final static String[] ANSI_COLORS = {
-            "\u001B[31m",
-            "\u001B[32m",
-            "\u001B[33m",
-            "\u001B[34m",
-            "\u001B[35m",
-            "\u001B[36m",
-            "\u001B[91m",
-            "\u001B[92m",
-            "\u001B[93m",
-            "\u001B[94m"
-    };
-    private final static String ANSI_RESET = "\u001B[0m";
-
     @Getter
     @Setter
     private volatile boolean enableColor = true;
+
+    private static final String ANSI_GREEN = "\u001B[38;5;208m";
+    private static final String ANSI_RESET  = "\u001B[0m";
+
+    private static final String PREFIX_DEBUG = "[DEBUG] ";
 
     @Getter
     @Setter
@@ -83,63 +72,76 @@ public class Log {
 
     public void debug(String msg, Object... args) {
         if (!this.debug) return;
-        this.log(Level.INFO, PREFIX_DEBUG + this.wrapCaller(msg), args);
+        this.log(Level.INFO, PREFIX_DEBUG + wrapCaller(msg), args);
     }
 
     public void debug(Throwable throwable, String msg, Object... args) {
         if (!this.debug) return;
-        this.log(Level.INFO, throwable, PREFIX_DEBUG + this.wrapCaller(msg), args);
+        this.log(Level.INFO, throwable, PREFIX_DEBUG + wrapCaller(msg), args);
     }
 
     private void log(Level level, String msg, Object... args) {
         if (this.shouldNotLog(level)) return;
-        this.plugin.getLogger().log(level, this.formatMessage(msg, args));
+        String message = this.formatMessage(msg, args);
+        this.buildLogger(level, message, null);
     }
 
     private void log(Level level, Throwable throwable, String msg, Object... args) {
         if (this.shouldNotLog(level)) return;
-
-        String message = (msg == null)
-                ? this.wrapCaller(throwable.getMessage())
-                : this.formatMessage(msg, args);
-
-        this.plugin.getLogger().log(level, message, throwable);
+        String message = (msg == null) ? throwable.getMessage() : this.formatMessage(msg, args);
+        this.buildLogger(level, message, throwable);
     }
 
     private boolean shouldNotLog(Level level) {
         return level.intValue() < this.minLevel.intValue();
     }
 
+    private void buildLogger(Level level, String message, Throwable throwable) {
+        var logger = this.plugin.getComponentLogger();
+        if (throwable != null) {
+            if (level == Level.INFO) {
+                logger.info(message, throwable);
+            } else if (level == Level.WARNING) {
+                logger.warn(message, throwable);
+            } else if (level == Level.SEVERE) {
+                logger.error(message, throwable);
+            } else {
+                logger.info(message, throwable);
+            }
+        } else {
+            if (level == Level.INFO) {
+                logger.info(message);
+            } else if (level == Level.WARNING) {
+                logger.warn(message);
+            } else if (level == Level.SEVERE) {
+                logger.error(message);
+            } else {
+                logger.info(message);
+            }
+        }
+    }
+
     private String formatMessage(String msg, Object... args) {
-        if (msg == null) {
-            return "null";
-        }
-        if (args == null || args.length == 0) {
-            return msg;
-        }
-        return this.formatBraceStyle(msg, args);
+        if (msg == null) return "null";
+        if (args == null || args.length == 0) return msg;
+        return formatBraceStyle(msg, args);
     }
 
     private String formatBraceStyle(String msg, Object... args) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(msg.length() + args.length * 16);
         int length = msg.length();
         int seqIndex = 0;
-
         for (int i = 0; i < length; i++) {
             char c = msg.charAt(i);
-
             if (c == '{' && i + 1 < length) {
-
                 if (i + 3 < length
                         && msg.charAt(i + 1) == '{'
                         && msg.charAt(i + 2) == '}'
                         && msg.charAt(i + 3) == '}') {
-
                     sb.append("{}");
                     i += 3;
                     continue;
                 }
-
                 if (msg.charAt(i + 1) == '}') {
                     if (seqIndex < args.length) {
                         this.appendArg(sb, args[seqIndex++]);
@@ -149,7 +151,6 @@ public class Log {
                     i++;
                     continue;
                 }
-
                 int end = msg.indexOf('}', i + 1);
                 if (end > i + 1) {
                     String indexStr = msg.substring(i + 1, end);
@@ -163,60 +164,36 @@ public class Log {
                         i = end;
                         continue;
                     } catch (NumberFormatException ignored) {
+                        sb.append('{').append(indexStr).append('}');
+                        i = end;
+                        continue;
                     }
                 }
             }
-
             sb.append(c);
         }
 
         while (seqIndex < args.length) {
-            sb.append(" ");
+            sb.append(' ');
             this.appendArg(sb, args[seqIndex++]);
         }
-
         return sb.toString();
     }
 
     private void appendArg(StringBuilder sb, Object arg) {
         String value = String.valueOf(arg);
         if (this.enableColor) {
-            sb.append(this.randomColor())
-                    .append(value)
-                    .append(ANSI_RESET);
+            sb.append(ANSI_GREEN).append(value).append(ANSI_RESET);
         } else {
             sb.append(value);
         }
     }
 
     private String wrapCaller(String msg) {
-        return "[" + this.getCallerClassName() + "] [" + this.getThreadName() + "] " + msg;
+        return "[" + STACK_WALKER.walk(frames -> frames.dropWhile(frame -> frame.getDeclaringClass() == Log.class)
+                .findFirst()
+                .map(StackWalker.StackFrame::getDeclaringClass)
+                .map(Class::getName)
+                .orElse("Unknown")) + "] [" + Thread.currentThread().getName() + "] " + msg;
     }
-
-    private String getCallerClassName() {
-        String className = STACK_WALKER.walk(frames ->
-                frames.dropWhile(frame -> frame.getDeclaringClass() == Log.class)
-                        .findFirst()
-                        .map(StackWalker.StackFrame::getDeclaringClass)
-                        .map(Class::getName)
-                        .orElse("Unknown")
-        );
-        return this.colorize(className);
-    }
-
-    private String getThreadName() {
-        return this.colorize(Thread.currentThread().getName());
-    }
-
-    private String randomColor() {
-        return ANSI_COLORS[ThreadLocalRandom.current().nextInt(ANSI_COLORS.length)];
-    }
-
-    private String colorize(String text) {
-        if (!this.enableColor || text == null || text.isEmpty()) {
-            return text;
-        }
-        return this.randomColor() + text + ANSI_RESET;
-    }
-
 }
