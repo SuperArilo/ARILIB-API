@@ -39,6 +39,10 @@ public class BasePlaceholder {
         return this.engine.render(this.instance.getString(path), offlinePlayer);
     }
 
+    public CompletableFuture<Component> rawRender(String content, Player player) {
+        return this.engine.render(content, player);
+    }
+
     public CompletableFuture<Component> renderList(String path, Player player) {
         return this.engine.renderList(this.instance.getStringList(path), player);
     }
