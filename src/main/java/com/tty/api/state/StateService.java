@@ -77,13 +77,14 @@ public abstract class StateService<T extends State> {
                     continue;
                 }
 
-                if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
-
                 if (state.isDone()) {
                     iterator.remove();
                     this.onFinished(state);
                     continue;
                 }
+
+                if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+
                 if (!state.isPending()) {
                     state.setPending(true);
                     try {
@@ -99,6 +100,9 @@ public abstract class StateService<T extends State> {
                             iterator.remove();
                             this.onFinished(state);
                         }
+                    } catch (Exception e) {
+                        this.plugin.getLog().error(e);
+                        state.setOver(true);
                     } finally {
                         state.setPending(false);
                     }
