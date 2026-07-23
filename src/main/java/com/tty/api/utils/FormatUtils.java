@@ -1,5 +1,7 @@
 package com.tty.api.utils;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
@@ -7,6 +9,8 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import java.text.DecimalFormat;
+import java.util.Map;
+import java.util.logging.Level;
 
 public class FormatUtils {
 
@@ -148,7 +152,13 @@ public class FormatUtils {
         }
 
         if (instance == null) {
-            throw new IllegalArgumentException("world field missing");
+            try {
+                Location location = Location.deserialize(new Gson().fromJson(locString, new TypeToken<Map<String, Object>>() {}.getType()));
+                if (location.getWorld() == null) throw new IllegalArgumentException();
+            } catch (Exception e) {
+                Bukkit.getServer().getLogger().log(Level.WARNING, "world field missing", e);
+                return new Location(Bukkit.getWorlds().getFirst(), 0, 0, 0);
+            }
         }
 
         World world = null;
