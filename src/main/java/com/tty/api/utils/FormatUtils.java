@@ -155,6 +155,7 @@ public class FormatUtils {
             try {
                 Location location = Location.deserialize(new Gson().fromJson(locString, new TypeToken<Map<String, Object>>() {}.getType()));
                 if (location.getWorld() == null) throw new IllegalArgumentException();
+                return location;
             } catch (Exception e) {
                 Bukkit.getServer().getLogger().log(Level.WARNING, "world field missing", e);
                 return new Location(Bukkit.getWorlds().getFirst(), 0, 0, 0);
