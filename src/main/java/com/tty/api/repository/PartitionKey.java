@@ -6,6 +6,7 @@ import java.util.Objects;
 
 /**
  * 缓存作用域（请注意，必须填写准确，不然会导致脏缓存）
+ * 多查一使用 global，一查多使用 Of
  * @param value
  */
 public record PartitionKey(Object value) {
