@@ -17,6 +17,10 @@ public interface PlaceholderResolve {
         return context -> supplier.get();
     }
 
+    static PlaceholderResolve ofWhenNullSync(Supplier<Component> supplier) {
+        return context -> CompletableFuture.completedFuture(supplier.get());
+    }
+
     static PlaceholderResolve of(Function<Player, CompletableFuture<Component>> playerFunc, Function<OfflinePlayer, CompletableFuture<Component>> offlineFunc) {
         return context -> {
             if (context == null) {
@@ -30,12 +34,33 @@ public interface PlaceholderResolve {
         };
     }
 
+    static PlaceholderResolve ofSync(Function<Player, Component> playerFunc, Function<OfflinePlayer, Component> offlineFunc) {
+        return context -> {
+            if (context == null) {
+                throw new IllegalArgumentException("context not allowed null");
+            }
+            if (context instanceof Player player) {
+                return CompletableFuture.completedFuture(playerFunc.apply(player));
+            } else {
+                return CompletableFuture.completedFuture(offlineFunc.apply(context));
+            }
+        };
+    }
+
     static PlaceholderResolve ofPlayer(Function<Player, CompletableFuture<Component>> function) {
         return of(function, offlinePlayer -> CompletableFuture.completedFuture(Component.empty()));
     }
 
+    static PlaceholderResolve ofPlayerSync(Function<Player, Component> function) {
+        return ofSync(function, offlinePlayer -> Component.empty());
+    }
+
     static PlaceholderResolve ofOfflinePlayer(Function<OfflinePlayer, CompletableFuture<Component>> function) {
         return function::apply;
+    }
+
+    static PlaceholderResolve ofOfflinePlayerSync(Function<OfflinePlayer, Component> function) {
+        return context -> CompletableFuture.completedFuture(function.apply(context));
     }
 
 }
