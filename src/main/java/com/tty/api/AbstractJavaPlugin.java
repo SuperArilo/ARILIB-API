@@ -8,6 +8,7 @@ import com.tty.api.scheduler.Scheduler;
 import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
+import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import okhttp3.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -105,6 +106,14 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.statusManager = new StatusManager();
         this.statusManager.registerStateMachine(this.services());
 
+        List<PlaceholderExpansion> expansions = this.expansions();
+        if (expansions != null && Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            for (PlaceholderExpansion expansion : expansions) {
+                expansion.register();
+                this.getLog().debug("register expansion {}", expansion.getClass().getName());
+            }
+        }
+
         this.checkUpdate();
     }
 
@@ -144,6 +153,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Nullable protected abstract List<BaseConfiguration> configurations();
 
     @Nullable protected abstract List<StateService<?>> services();
+
+    @Nullable protected  abstract List<PlaceholderExpansion> expansions();
 
     public void reload(@Nullable CommandSender sender) {
         this.saveDefaultConfig();
