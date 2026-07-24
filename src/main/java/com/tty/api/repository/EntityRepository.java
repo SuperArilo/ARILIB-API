@@ -106,27 +106,30 @@ public abstract class EntityRepository<T> {
     @Nullable
     public T getDirectFromCache(LambdaQueryWrapper<T> key, PartitionKey partition) {
         PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, QueryKey.of(key));
-        T cache = this.entityCache.getIfPresent(pKey);
-        if (cache != null) {
+        T cached = this.entityCache.getIfPresent(pKey);
+        if (cached != null) {
             this.debug("direct entity cache hit: {}", pKey);
-        } else {
-            this.debug("direct entity cache miss: {}", pKey);
+            return cached;
         }
-        return cache;
+
+        this.debug("direct entity cache miss, triggering async load: {}", pKey);
+        this.get(key, partition);
+        return null;
     }
 
     @Nullable
     public PageResult<T> getListDirectFromCache(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
         PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, QueryKey.of(condition));
         PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
-
         PageResult<T> cached = this.pageCache.getIfPresent(pPageKey);
         if (cached != null) {
             this.debug("direct page cache hit: {}", pPageKey);
-        } else {
-            this.debug("direct page cache miss: {}", pPageKey);
+            return cached;
         }
-        return cached;
+
+        this.debug("direct page cache miss, triggering async load: {}", pPageKey);
+        this.getList(pageNum, pageSize, condition, partition);
+        return null;
     }
 
     public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
