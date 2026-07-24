@@ -34,6 +34,7 @@ public interface PlaceholderResolve {
         };
     }
 
+    // 注册一个同步解析器，用于直接返回结果（不阻塞）
     static PlaceholderResolve ofSync(Function<Player, Component> playerFunc, Function<OfflinePlayer, Component> offlineFunc) {
         return context -> {
             if (context == null) {
@@ -51,6 +52,7 @@ public interface PlaceholderResolve {
         return of(function, offlinePlayer -> CompletableFuture.completedFuture(Component.empty()));
     }
 
+    // 注册一个同步解析器，用于直接返回结果（不阻塞）
     static PlaceholderResolve ofPlayerSync(Function<Player, Component> function) {
         return ofSync(function, offlinePlayer -> Component.empty());
     }
@@ -59,6 +61,7 @@ public interface PlaceholderResolve {
         return function::apply;
     }
 
+    // 注册一个同步解析器，用于直接返回结果（不阻塞）
     static PlaceholderResolve ofOfflinePlayerSync(Function<OfflinePlayer, Component> function) {
         return context -> CompletableFuture.completedFuture(function.apply(context));
     }
