@@ -10,7 +10,7 @@ public interface TeleportingService {
     TeleportingService aborted(Runnable runnable);
     TeleportingService before(Consumer<TeleportingService> consumer);
     void after(Runnable runnable);
-    TeleportingService teleport(Entity entity, Location beforeLocation, Location targetLocation);
+    TeleportingService teleport(Entity entity, Location targetLocation);
     void cancel();
 
 }
