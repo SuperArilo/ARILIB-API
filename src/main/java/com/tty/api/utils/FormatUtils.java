@@ -2,12 +2,11 @@ package com.tty.api.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+
 import java.text.DecimalFormat;
 import java.util.Map;
 import java.util.logging.Level;
@@ -22,19 +21,6 @@ public class FormatUtils {
     public static String formatTwoDecimalPlaces(Number number) {
         if (number == null) return "0.00";
         return ThreadLocal.withInitial(() -> new DecimalFormat("0.00")).get().format(number);
-    }
-
-    /**
-     * 将 Component 转成 String
-     * @param component 被转对象
-     * @return 返回String
-     */
-    public static String componentToString(Component component) {
-        if (component == null) return "";
-        if(component instanceof TextComponent) {
-            return ((TextComponent) component).content();
-        }
-        return component.toString();
     }
 
     /**

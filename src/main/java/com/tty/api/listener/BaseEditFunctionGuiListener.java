@@ -5,8 +5,8 @@ import com.tty.api.enumType.FunctionType;
 import com.tty.api.enumType.GuiKeyEnum;
 import com.tty.api.gui.BaseInventory;
 import com.tty.api.state.GuiEditFunctionState;
-import com.tty.api.utils.FormatUtils;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 
@@ -22,7 +22,7 @@ public abstract class BaseEditFunctionGuiListener<T extends BaseInventory, D> ex
         GuiEditFunctionState<D> state = this.isHaveState(player);
         if (state == null || !this.getGuiType().equals(state.getType())) return;
         event.setCancelled(true);
-        String message = FormatUtils.componentToString(event.message());
+        String message = MiniMessage.miniMessage().serializeOr(event.message(), "cancel");
 
         //玩家手动输入 cancel 取消操作
         if (FunctionType.CANCEL.name().equals(message.toUpperCase())) {
