@@ -103,6 +103,32 @@ public abstract class EntityRepository<T> {
         return newFuture;
     }
 
+    @Nullable
+    public T getDirectFromCache(LambdaQueryWrapper<T> key, PartitionKey partition) {
+        PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, QueryKey.of(key));
+        T cache = this.entityCache.getIfPresent(pKey);
+        if (cache != null) {
+            this.debug("direct entity cache hit: {}", pKey);
+        } else {
+            this.debug("direct entity cache miss: {}", pKey);
+        }
+        return cache;
+    }
+
+    @Nullable
+    public PageResult<T> getListDirectFromCache(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
+        PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, QueryKey.of(condition));
+        PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
+
+        PageResult<T> cached = this.pageCache.getIfPresent(pPageKey);
+        if (cached != null) {
+            this.debug("direct page cache hit: {}", pPageKey);
+        } else {
+            this.debug("direct page cache miss: {}", pPageKey);
+        }
+        return cached;
+    }
+
     public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
         QueryKey queryKey = QueryKey.of(condition);
         PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
