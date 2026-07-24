@@ -14,7 +14,6 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -106,13 +105,6 @@ public class ComponentTool {
         } else {
             return itemStack.displayName().hoverEvent(itemStack.asHoverEvent(showItem -> showItem));
         }
-    }
-
-    public static Component setEntityHoverText(@Nullable Entity entity) {
-        if (entity == null) {
-            return Component.empty();
-        }
-        return Component.empty().append(entity.name()).hoverEvent(HoverEvent.showText(Component.text(entity.getType().key().asString())));
     }
 
     @SuppressWarnings("PatternValidation")
