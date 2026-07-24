@@ -57,7 +57,7 @@ public abstract class EntityRepository<T> {
     }
     
     public CompletableFuture<@Nullable T> get(LambdaQueryWrapper<T> key, PartitionKey partition) {
-        QueryKey queryKey = wrapQueryKey(key);
+        QueryKey queryKey = QueryKey.of(key);
         PartitionedKey<QueryKey> pKey = new PartitionedKey<>(partition, queryKey);
 
         T cached = this.entityCache.getIfPresent(pKey);
@@ -104,7 +104,7 @@ public abstract class EntityRepository<T> {
     }
 
     public CompletableFuture<PageResult<T>> getList(int pageNum, int pageSize, LambdaQueryWrapper<T> condition, PartitionKey partition) {
-        QueryKey queryKey = wrapQueryKey(condition);
+        QueryKey queryKey = QueryKey.of(condition);
         PageKey<QueryKey> pageKey = new PageKey<>(pageNum, pageSize, queryKey);
         PartitionedKey<PageKey<QueryKey>> pPageKey = new PartitionedKey<>(partition, pageKey);
 
@@ -232,15 +232,6 @@ public abstract class EntityRepository<T> {
     }
 
     /**
-     * 将 MyBatis-Plus 查询包装器转换为缓存的查询键
-     * @param wrapper 查询条件
-     * @return 查询键
-     */
-    private QueryKey wrapQueryKey(LambdaQueryWrapper<T> wrapper) {
-        return QueryKey.of(wrapper);
-    }
-
-    /**
      * 提取实体的主键值（反射实现，结果缓存在 PK_FIELD_CACHE 中）
      * @param entity 实体对象
      * @return 主键值，若无法提取则返回 null
@@ -295,7 +286,7 @@ public abstract class EntityRepository<T> {
 
         LambdaQueryWrapper<T> pkWrapper = new LambdaQueryWrapper<>(entity);
         pkWrapper.apply(tableInfo.getKeyColumn() + " = {0}", id);
-        return new PartitionedKey<>(partition, wrapQueryKey(pkWrapper));
+        return new PartitionedKey<>(partition, QueryKey.of(pkWrapper));
     }
 
     /**
@@ -338,7 +329,7 @@ public abstract class EntityRepository<T> {
                 String columnName = camelToUnderline(field.getName());
                 LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
                 wrapper.apply(columnName + " = {0}", value);
-                QueryKey queryKey = wrapQueryKey(wrapper);
+                QueryKey queryKey = QueryKey.of(wrapper);
                 keys.add(new PartitionedKey<>(partition, queryKey));
             } catch (IllegalAccessException e) {
                 this.debug("Failed to access cache key field '{}': {}", field.getName(), e.getMessage());
@@ -410,7 +401,7 @@ public abstract class EntityRepository<T> {
             this.debug("Entity cached (pk): {}", pkKey);
         } else {
             LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-            pkKey = new PartitionedKey<>(partition, wrapQueryKey(wrapper));
+            pkKey = new PartitionedKey<>(partition, QueryKey.of(wrapper));
             this.entityCache.put(pkKey, entity);
             this.debug("Entity cached (fallback): {}", pkKey);
         }

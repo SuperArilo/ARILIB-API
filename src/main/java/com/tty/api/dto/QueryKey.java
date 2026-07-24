@@ -3,6 +3,7 @@ package com.tty.api.dto;
 import com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -17,10 +18,7 @@ public final class QueryKey {
     private final String readableCondition;
     private final int hashCode;
 
-    private QueryKey(Class<?> entityClass,
-                     String sqlSegmentSnapshot,
-                     SortedMap<String, Object> paramsSnapshot,
-                     String orderBySqlSnapshot) {
+    private QueryKey(Class<?> entityClass, String sqlSegmentSnapshot, SortedMap<String, Object> paramsSnapshot, String orderBySqlSnapshot) {
         this.entityClass = entityClass;
         this.sqlSegmentSnapshot = sqlSegmentSnapshot == null ? "" : sqlSegmentSnapshot;
         this.paramsSnapshot = paramsSnapshot == null ? new TreeMap<>() : paramsSnapshot;
@@ -30,13 +28,13 @@ public final class QueryKey {
         this.hashCode = readableCondition.hashCode();
     }
 
-    public static <T> QueryKey of(LambdaQueryWrapper<T> wrapper) {
-
-        Objects.requireNonNull(wrapper, "wrapper must not be null");
-
+    public static <T> QueryKey of(@NotNull LambdaQueryWrapper<T> wrapper) {
         Class<?> entityClass = wrapper.getEntityClass();
         if (entityClass == null && wrapper.getEntity() != null) {
             entityClass = wrapper.getEntity().getClass();
+        }
+        if (entityClass == null) {
+            throw new IllegalArgumentException("LambdaQueryWrapper requires an entity class. Did you forget to specify it?");
         }
 
         String rawSqlSegment;
@@ -72,33 +70,31 @@ public final class QueryKey {
     private String buildReadableCondition() {
         StringBuilder sb = new StringBuilder();
 
-        if (entityClass != null) {
-            sb.append(entityClass.getName()).append(" | ");
+        if (this.entityClass != null) {
+            sb.append(this.entityClass.getName()).append(" | ");
         } else {
             sb.append("Entity=UNKNOWN").append(" | ");
         }
 
-        if (StringUtils.isNotBlank(sqlSegmentSnapshot)) {
-            sb.append(sqlSegmentSnapshot);
+        if (StringUtils.isNotBlank(this.sqlSegmentSnapshot)) {
+            sb.append(this.sqlSegmentSnapshot);
         } else {
             sb.append("<no-sql-segment>");
         }
 
-        if (!paramsSnapshot.isEmpty()) {
+        if (!this.paramsSnapshot.isEmpty()) {
             sb.append(" [");
-            String paramStr = paramsSnapshot.entrySet().stream()
-                    .map(entry -> {
-                        String key = entry.getKey();
-                        Object value = entry.getValue();
-                        String resolvedName = tryResolveParamName(key, value);
-                        return resolvedName + "=" + formatValue(value);
-                    })
-                    .collect(Collectors.joining(", "));
+            String paramStr = this.paramsSnapshot.entrySet().stream().map(entry -> {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+                String resolvedName = tryResolveParamName(key, value);
+                return resolvedName + "=" + formatValue(value);
+            }).collect(Collectors.joining(", "));
             sb.append(paramStr).append("]");
         }
 
-        if (StringUtils.isNotBlank(orderBySqlSnapshot)) {
-            sb.append(" ORDER_BY:").append(orderBySqlSnapshot);
+        if (StringUtils.isNotBlank(this.orderBySqlSnapshot)) {
+            sb.append(" ORDER_BY:").append(this.orderBySqlSnapshot);
         }
 
         return sb.toString();
@@ -110,7 +106,7 @@ public final class QueryKey {
     }
 
     private String tryResolveParamName(String paramKey, Object paramValue) {
-        if (entityClass == null || paramValue == null) {
+        if (this.entityClass == null || paramValue == null) {
             return paramKey;
         }
 
@@ -120,14 +116,14 @@ public final class QueryKey {
 
         try {
             Object possibleEntityInstance = null;
-            if (paramsSnapshot.containsKey("et")) {
-                possibleEntityInstance = paramsSnapshot.get("et");
-            } else if (paramsSnapshot.containsKey("entity")) {
-                possibleEntityInstance = paramsSnapshot.get("entity");
+            if (this.paramsSnapshot.containsKey("et")) {
+                possibleEntityInstance = this.paramsSnapshot.get("et");
+            } else if (this.paramsSnapshot.containsKey("entity")) {
+                possibleEntityInstance = this.paramsSnapshot.get("entity");
             }
-            if (entityClass.isInstance(possibleEntityInstance)) {
+            if (this.entityClass.isInstance(possibleEntityInstance)) {
                 List<String> matches = new ArrayList<>();
-                for (Field field : getAllDeclaredFields(entityClass)) {
+                for (Field field : getAllDeclaredFields(this.entityClass)) {
                     try {
                         field.setAccessible(true);
                         Object fieldValue = field.get(possibleEntityInstance);
@@ -154,11 +150,11 @@ public final class QueryKey {
 
     private static String extractOrderBySql(LambdaQueryWrapper<?> wrapper) {
         try {
-            Field orderByFlagField = findFieldInHierarchy("orderBy");
+            Field field = findFieldInHierarchy("orderBy");
             boolean orderBy = false;
-            if (orderByFlagField != null) {
-                orderByFlagField.setAccessible(true);
-                orderBy = orderByFlagField.getBoolean(wrapper);
+            if (field != null) {
+                field.setAccessible(true);
+                orderBy = field.getBoolean(wrapper);
             }
 
             if (orderBy) {
@@ -201,17 +197,17 @@ public final class QueryKey {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof QueryKey that)) return false;
-        return Objects.equals(this.readableCondition, that.readableCondition);
+        if (!(o instanceof QueryKey queryKey)) return false;
+        return Objects.equals(this.readableCondition, queryKey.readableCondition);
     }
 
     @Override
     public int hashCode() {
-        return hashCode;
+        return this.hashCode;
     }
 
     @Override
     public String toString() {
-        return readableCondition;
+        return this.readableCondition;
     }
 }
