@@ -3,9 +3,7 @@ package com.tty.api.service;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-public interface InteractService {
-
-    String pluginName();
+public interface InteractService extends BaseOtherPluginService {
 
     boolean canBuild(Location location);
 
