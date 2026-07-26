@@ -1,6 +1,7 @@
 package com.tty.api.service;
 
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 public interface AttackService extends BaseOtherPluginService {
 
@@ -10,6 +11,6 @@ public interface AttackService extends BaseOtherPluginService {
 
     void changePvpStatus(Player player, boolean pvpStatus);
 
-    void cancelPvpTag(Player player);
+    void cancelPvpTag(@NotNull Player player);
 
 }
