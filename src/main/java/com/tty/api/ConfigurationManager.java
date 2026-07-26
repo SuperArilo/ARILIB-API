@@ -98,18 +98,7 @@ public class ConfigurationManager {
         }
 
     }
-
-    public @Nullable <T> T convertTo(Object raw, Type type) {
-        try {
-            if (raw instanceof String) {
-                return this.gson.fromJson((String) raw, type);
-            }
-            return this.gson.fromJson(this.gson.toJson(raw), type);
-        } catch (JsonSyntaxException e) {
-            return null;
-        }
-    }
-
+    
     public @Nullable String jsonToString(Object raw) {
         try {
             return this.gson.toJson(raw);
