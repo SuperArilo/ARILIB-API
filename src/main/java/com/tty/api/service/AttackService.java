@@ -8,6 +8,8 @@ public interface AttackService extends BaseOtherPluginService {
 
     boolean canAttackPlayer(Player damager, Player victim);
 
-    void changePlayerPvpStatus(Player player, boolean pvpStatus);
+    void changePvpStatus(Player player, boolean pvpStatus);
+
+    void cancelPvpTag(Player player);
 
 }
