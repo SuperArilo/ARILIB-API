@@ -131,10 +131,10 @@ public class ConfigurationManager {
             configuration.clearCache();
             if (overwrite) {
                 try {
-                    this.plugin.saveResource(configuration.getPath(), true);
+                    this.plugin.saveResource(configuration.getRelativePath(), true);
                 } catch (Exception e) {
                     if (!(configuration instanceof AllowDownloadConfiguration download)) {
-                        this.plugin.getLog().error(e, "could not overwrite file {}. because not found in jar.", configuration.getPath());
+                        this.plugin.getLog().error(e, "could not overwrite file {}. because not found in jar.", configuration.getRelativePath());
                         continue;
                     }
                     if (sender == null) {
@@ -166,8 +166,8 @@ public class ConfigurationManager {
     }
 
     private void downloadSync(AllowDownloadConfiguration download) {
-        File targetFile = new File(plugin.getDataFolder(), download.getPath());
-        Request request = new Request.Builder().url(download.getUrl()).build();
+        File targetFile = new File(plugin.getDataFolder(), download.getRelativePath());
+        Request request = new Request.Builder().url(download.getDownloadUrl()).build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 plugin.getLog().warn("download file error. code: {}", response.code());
@@ -181,17 +181,17 @@ public class ConfigurationManager {
             this.configurationMap.put(download.getClass(), download);
             plugin.getLog().debug("file save to {}", targetFile);
         } catch (IOException e) {
-            plugin.getLog().warn(e, "file download/save error, url: {}", download.getUrl());
+            plugin.getLog().warn(e, "file download/save error, url: {}", download.getDownloadUrl());
         }
     }
 
     private void downloadAsync(AllowDownloadConfiguration download, Runnable onComplete) {
-        File targetFile = new File(plugin.getDataFolder(), download.getPath());
-        Request request = new Request.Builder().header("User-Agent", "PaperMC-Plugin").url(download.getUrl()).build();
+        File targetFile = new File(plugin.getDataFolder(), download.getRelativePath());
+        Request request = new Request.Builder().header("User-Agent", "PaperMC-Plugin").url(download.getDownloadUrl()).build();
         this.client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                plugin.getLog().warn(e, "download file error, url: {}", download.getUrl());
+                plugin.getLog().warn(e, "download file error, url: {}", download.getDownloadUrl());
                 onComplete.run();
             }
 
@@ -220,7 +220,7 @@ public class ConfigurationManager {
 
     private void checkRemoteVersionAsync(AllowDownloadConfiguration download) {
         Request request = new Request.Builder()
-                .url(download.getUrl())
+                .url(download.getDownloadUrl())
                 .header("User-Agent", "PaperMC-Plugin")
                 .build();
 
@@ -234,13 +234,13 @@ public class ConfigurationManager {
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 try (response) {
                     if (!response.isSuccessful()) {
-                        plugin.getLog().warn("check update error, HTTP {} : {}", response.code(), download.getUrl());
+                        plugin.getLog().warn("check update error, HTTP {} : {}", response.code(), download.getDownloadUrl());
                         return;
                     }
 
                     long contentLength = response.body().contentLength();
                     if (contentLength > 1024 * 1024) {
-                        plugin.getLog().warn("check file error, file is too large: {}", contentLength, download.getUrl());
+                        plugin.getLog().warn("check file error, file is too large: {}", contentLength, download.getDownloadUrl());
                         return;
                     }
 
@@ -264,7 +264,7 @@ public class ConfigurationManager {
 
                     double local = download.getVersion();
                     if (remote > local) {
-                        plugin.getLog().info("update available - file: {} local: {} remote: {}", download.getPath(), local, remote);
+                        plugin.getLog().info("update available - file: {} local: {} remote: {}", download.getRelativePath(), local, remote);
                     }
                 } catch (IOException e) {
                     plugin.getLog().error(e);

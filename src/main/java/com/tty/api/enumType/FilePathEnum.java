@@ -2,7 +2,7 @@ package com.tty.api.enumType;
 
 public interface FilePathEnum {
 
-    String getPath();
-    String name();
+    String getFullPathInJar();
+    String getFullFileName();
 
 }

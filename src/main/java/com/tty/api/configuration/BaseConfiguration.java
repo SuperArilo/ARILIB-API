@@ -42,12 +42,12 @@ public abstract class BaseConfiguration {
             .build();
 
     @Getter
-    private String path = "";
+    private String relativePath = "";
 
-    public BaseConfiguration(AbstractJavaPlugin plugin, String path) {
+    public BaseConfiguration(AbstractJavaPlugin plugin, String relativePath) {
         this.plugin = plugin;
-        this.path = path;
-        File file = new File(plugin.getDataFolder(), path);
+        this.relativePath = relativePath;
+        File file = new File(plugin.getDataFolder(), relativePath);
         if (file.exists()) {
             this.configuration = YamlConfiguration.loadConfiguration(file);
         }
@@ -133,9 +133,9 @@ public abstract class BaseConfiguration {
         this.cache.invalidateAll();
         this.plugin.getScheduler().runAsync(i -> {
             try {
-                this.configuration.save(new File(this.plugin.getDataFolder(), this.path));
+                this.configuration.save(new File(this.plugin.getDataFolder(), this.relativePath));
             } catch (IOException e) {
-                this.plugin.getLog().error(e, "save file {} error, key path {}.", this.path, path);
+                this.plugin.getLog().error(e, "save file {} error, key path {}.", this.relativePath, path);
             }
         });
     }
@@ -159,7 +159,7 @@ public abstract class BaseConfiguration {
 
     public void save() throws IOException {
         if (this.isEmpty()) return;
-        this.configuration.save(new File(this.plugin.getDataFolder(), this.path));
+        this.configuration.save(new File(this.plugin.getDataFolder(), this.relativePath));
     }
 
     public void clearCache() {
