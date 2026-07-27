@@ -7,6 +7,7 @@ import com.tty.api.configuration.AllowDownloadConfiguration;
 import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.event.WhenPluginConfigReloadCompleteEvent;
 import okhttp3.*;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -180,7 +181,7 @@ public class ConfigurationManager {
         this.client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                plugin.getLog().warn(e, "download file error, url: {}", download.getDownloadUrl());
+                plugin.getLog().warn("download file error, url: {}", download.getDownloadUrl());
                 onComplete.run();
             }
 
@@ -233,7 +234,7 @@ public class ConfigurationManager {
                         return;
                     }
 
-                    double remote = 0;
+                    String remote = "";
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
@@ -243,20 +244,18 @@ public class ConfigurationManager {
                                 if (value.startsWith("\"") && value.endsWith("\"")) {
                                     value = value.substring(1, value.length() - 1);
                                 }
-                                try {
-                                    remote = Double.parseDouble(value);
-                                } catch (NumberFormatException ignored) {}
+                                remote = value;
                                 break;
                             }
                         }
+                    } catch (IOException e) {
+                        plugin.getLog().warn("could not found version key in reader. {}", e.getMessage());
                     }
 
-                    double local = download.getVersion();
-                    if (remote > local) {
+                    String local = download.getVersion();
+                    if (new ComparableVersion(local).compareTo(new ComparableVersion(remote)) < 0) {
                         plugin.getLog().info("update available - file: {} local: {} remote: {}", download.getRelativePath(), local, remote);
                     }
-                } catch (IOException e) {
-                    plugin.getLog().error(e);
                 }
             }
         });

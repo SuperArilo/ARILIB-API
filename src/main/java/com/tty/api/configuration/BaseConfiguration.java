@@ -61,9 +61,13 @@ public abstract class BaseConfiguration {
         this.plugin = plugin;
     }
 
+    public String getString(String keyPath, String defaultValue) {
+        if (keyPath.isEmpty()) return defaultValue;
+        return (String) this.cache.get(keyPath, k -> this.configuration.getString(k, defaultValue));
+    }
+
     public String getString(String keyPath) {
-        if (this.isEmpty()) return "null";
-        return (String) this.cache.get(keyPath, k -> this.configuration.getString(k, "null"));
+        return (String) this.cache.get(keyPath, k -> this.configuration.getString(k, ""));
     }
 
     public boolean getBool(String keyPath, boolean defaultValue) {

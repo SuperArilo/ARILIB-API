@@ -15,8 +15,8 @@ public abstract class AllowDownloadConfiguration extends BaseConfiguration imple
     public abstract String  getDownloadUrl();
 
     @Override
-    public double getVersion() {
-        return this.getDouble("version", 0.0);
+    public String getVersion() {
+        return this.getString("version", "0.0");
     }
 
 }

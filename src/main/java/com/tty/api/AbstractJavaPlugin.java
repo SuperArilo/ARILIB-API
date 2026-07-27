@@ -4,6 +4,7 @@ import com.google.gson.JsonParser;
 import com.tty.api.dto.PluginVersion;
 import com.tty.api.dto.TempRegisterService;
 import com.tty.api.configuration.BaseConfiguration;
+import com.tty.api.scheduler.RunTask;
 import com.tty.api.scheduler.Scheduler;
 import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
@@ -34,19 +35,18 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Getter
     private boolean debug = false;
 
-    @Getter
-    private PluginVersion version;
-
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build();
 
+    private RunTask checkVersionTask;
+
     @Getter
     private ConfigurationManager configurationManager;
 
     @Getter
-    private Log log;
+    private final Log log = new Log(this);
 
     @Getter
     private Scheduler scheduler;
@@ -65,7 +65,6 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Override
     public void onLoad() {
-        this.log = new Log(this);
         this.scheduler = Scheduler.create(this);
         this.loading();
     }
@@ -114,12 +113,16 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             }
         }
 
-        this.checkUpdate();
+        this.checkVersionTask = this.createCheckVersionTask();
     }
 
     @Override
     public void onDisable() {
         this.configurationManager.saveAllFiles();
+        if (this.checkVersionTask != null) {
+            this.checkVersionTask.cancel();
+            this.checkVersionTask = null;
+        }
         this.disabling();
     }
 
@@ -181,21 +184,22 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.configurationManager = new ConfigurationManager(this);
         }
         this.configurationManager.reload(this.configurations(), sender);
-        if (sender != null) {
-            this.checkUpdate();
+        if (this.checkVersionTask != null) {
+            this.checkVersionTask.cancel();
+            this.checkVersionTask = this.createCheckVersionTask();
         }
     }
 
     @SuppressWarnings({"deprecation", "UnstableApiUsage"})
-    private CompletableFuture<PluginVersion> requestVersion() {
+    private CompletableFuture<@Nullable PluginVersion> requestVersion() {
         CompletableFuture<PluginVersion> future = new CompletableFuture<>();
         Log log = this.getLog();
-        PluginVersion version = new PluginVersion();
 
+        String current;
         if (Scheduler.isFolia()) {
-            version.setCurrentVersion(this.getPluginMeta().getVersion());
+            current = this.getPluginMeta().getVersion();
         } else {
-            version.setCurrentVersion(this.getDescription().getVersion());
+            current = this.getDescription().getVersion();
         }
 
         String apiUrl = "https://api.github.com/repos/SuperArilo/" + this.getName().toUpperCase() + "/releases/latest";
@@ -204,15 +208,16 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                 .header("Accept", "application/vnd.github.v3+json")
                 .build();
 
-        this.httpClient.newCall(request).enqueue(new okhttp3.Callback() {
+        this.httpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                log.error("failed to check for updates (network/timeout)", e);
-                future.complete(version);
+                log.error("failed to check for updates (network/timeout). {}", e.getMessage());
+                future.complete(null);
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
+                String remote = "";
                 try (response) {
                     if (!response.isSuccessful()) {
                         if (response.code() == 429) {
@@ -225,14 +230,13 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
                         if (body.isEmpty()) {
                             log.warn("github api returned empty response");
                         } else {
-                            String tag = JsonParser.parseString(body).getAsJsonObject().get("tag_name").getAsString();
-                            version.setRemoteVersion(tag.startsWith("v") ? tag.substring(1) : tag);
+                            remote = JsonParser.parseString(body).getAsJsonObject().get("tag_name").getAsString();
                         }
                     }
                 } catch (Exception e) {
-                    log.error("error parsing update response", e);
+                    log.error("error parsing update response {}", e.getMessage());
                 } finally {
-                    future.complete(version);
+                    future.complete(new PluginVersion(current, remote.startsWith("v") ? remote.substring(1) : remote));
                 }
             }
         });
@@ -240,16 +244,24 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         return future;
     }
 
+    private RunTask createCheckVersionTask() {
+        return this.getScheduler().runAsyncAtFixedRate(i -> {
+            if (i.isCancelled()) return;
+            this.checkUpdate();
+        }, 0L, 20 * 60 * 60);
+    }
+
     public void checkUpdate() {
-        this.requestVersion().thenAcceptAsync(s -> {
-            this.version = s;
-            if (s.hasNewVersion()) {
-                log.info("=========================================");
-                log.info("发现新版本: {}", s.getRemoteVersion());
-                log.info("当前版本: {}", s.getCurrentVersion());
-                log.info("=========================================");
-            } else {
-                log.info("插件已是最新版本。");
+        this.requestVersion().thenAcceptAsync(value -> {
+            if (value == null) {
+                this.log.warn("无法检查可更新的版本，请检查网络后重试");
+            } else if (value.hasNewVersion()) {
+                synchronized (this.log) {
+                    this.log.info("=========================================");
+                    this.log.info("发现新版本: {}", value.getRemoteVersion());
+                    this.log.info("当前版本: {}", value.getCurrentVersion());
+                    this.log.info("=========================================");
+                }
             }
         }).exceptionallyAsync(i -> {
             this.getLog().error(i);
