@@ -11,7 +11,6 @@ import com.tty.api.enumType.IconKeyType;
 import com.tty.api.enumType.NbtGuiValue;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.Inventory;
@@ -100,7 +99,7 @@ public abstract class BaseConfigInventory extends BaseInventory {
             mask = this.config().getMask();
         }
         if (mask == null) return;
-        List<TextComponent> collect = mask.getLore().stream().map(ComponentTool::text).toList();
+        List<Component> collect = mask.getLore().stream().map(ComponentTool::text).toList();
 
         for (Integer i : mask.getSlot()) {
             ItemStack itemStack = ItemStack.of(Material.valueOf(mask.getMaterial().toUpperCase()));
