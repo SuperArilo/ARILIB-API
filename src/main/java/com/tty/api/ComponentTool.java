@@ -27,19 +27,19 @@ public class ComponentTool {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
-    public static TextComponent text(@Nullable String content) {
+    public static Component text(@Nullable String content) {
         return build(null, content, null);
     }
 
-    public static TextComponent text(@Nullable String content, Map<String, Component> placeholders) {
+    public static Component text(@Nullable String content, Map<String, Component> placeholders) {
         return build(null, content, placeholders);
     }
 
-    public static TextComponent text(@Nullable String content, OfflinePlayer player) {
+    public static Component text(@Nullable String content, OfflinePlayer player) {
         return build(player, content, null);
     }
 
-    public static TextComponent text(@Nullable String content, OfflinePlayer player, Map<String, Component> placeholders) {
+    public static Component text(@Nullable String content, OfflinePlayer player, Map<String, Component> placeholders) {
         return build(player, content, placeholders);
     }
 
@@ -87,15 +87,15 @@ public class ComponentTool {
         return component.clickEvent(event);
     }
 
-    public static TextComponent setClickEventText(String content, ClickEvent event) {
+    public static Component setClickEventText(String content, ClickEvent event) {
         return text(content).clickEvent(event);
     }
 
-    public static TextComponent setClickEventText(String content, Map<String, Component> placeholders, ClickEvent event) {
+    public static Component setClickEventText(String content, Map<String, Component> placeholders, ClickEvent event) {
         return text(content, placeholders).clickEvent(event);
     }
 
-    public static TextComponent setHoverText(String content, String showText) {
+    public static Component setHoverText(String content, String showText) {
         return text(content).hoverEvent(HoverEvent.showText(text(showText)));
     }
 
@@ -107,8 +107,12 @@ public class ComponentTool {
         }
     }
 
+    private static Component build(@Nullable String template, Map<String, Component> placeholders) {
+        return build(null, template, placeholders);
+    }
+
     @SuppressWarnings("PatternValidation")
-    private static TextComponent build(OfflinePlayer player,@Nullable String template, Map<String, Component> placeholders) {
+    private static Component build(OfflinePlayer player, @Nullable String template, Map<String, Component> placeholders) {
         if (template == null) {
             template = "";
         }
