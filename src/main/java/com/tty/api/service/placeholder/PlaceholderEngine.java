@@ -14,6 +14,8 @@ public interface PlaceholderEngine {
     CompletableFuture<Component> renderList(List<String> templates, OfflinePlayer context);
     CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context);
 
+    void shutdown();
+
     default CompletableFuture<Component> render(String template, Player player) {
         return render(template, (OfflinePlayer) player);
     }

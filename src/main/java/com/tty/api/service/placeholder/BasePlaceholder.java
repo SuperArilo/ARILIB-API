@@ -63,4 +63,8 @@ public class BasePlaceholder {
         this.engine.setRegistry(registry);
     }
 
+    public void close() {
+        this.engine.shutdown();
+    }
+
 }
