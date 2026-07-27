@@ -1,6 +1,5 @@
 package com.tty.api.service.placeholder;
 
-import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
@@ -11,17 +10,17 @@ import java.util.function.Supplier;
 @FunctionalInterface
 public interface PlaceholderResolve {
 
-    CompletableFuture<Component> resolve(OfflinePlayer context);
+    CompletableFuture<String> resolve(OfflinePlayer context);
 
-    static PlaceholderResolve ofWhenNull(Supplier<CompletableFuture<Component>> supplier) {
+    static PlaceholderResolve ofWhenNull(Supplier<CompletableFuture<String>> supplier) {
         return context -> supplier.get();
     }
 
-    static PlaceholderResolve ofWhenNullSync(Supplier<Component> supplier) {
+    static PlaceholderResolve ofWhenNullSync(Supplier<String> supplier) {
         return context -> CompletableFuture.completedFuture(supplier.get());
     }
 
-    static PlaceholderResolve of(Function<Player, CompletableFuture<Component>> playerFunc, Function<OfflinePlayer, CompletableFuture<Component>> offlineFunc) {
+    static PlaceholderResolve of(Function<Player, CompletableFuture<String>> playerFunc, Function<OfflinePlayer, CompletableFuture<String>> offlineFunc) {
         return context -> {
             if (context == null) {
                 throw new IllegalArgumentException("context not allowed null");
@@ -34,8 +33,7 @@ public interface PlaceholderResolve {
         };
     }
 
-    // 注册一个同步解析器，用于直接返回结果（不阻塞）
-    static PlaceholderResolve ofSync(Function<Player, Component> playerFunc, Function<OfflinePlayer, Component> offlineFunc) {
+    static PlaceholderResolve ofSync(Function<Player, String> playerFunc, Function<OfflinePlayer, String> offlineFunc) {
         return context -> {
             if (context == null) {
                 throw new IllegalArgumentException("context not allowed null");
@@ -48,21 +46,19 @@ public interface PlaceholderResolve {
         };
     }
 
-    static PlaceholderResolve ofPlayer(Function<Player, CompletableFuture<Component>> function) {
-        return of(function, offlinePlayer -> CompletableFuture.completedFuture(Component.empty()));
+    static PlaceholderResolve ofPlayer(Function<Player, CompletableFuture<String>> function) {
+        return of(function, offlinePlayer -> CompletableFuture.completedFuture(""));
     }
 
-    // 注册一个同步解析器，用于直接返回结果（不阻塞）
-    static PlaceholderResolve ofPlayerSync(Function<Player, Component> function) {
-        return ofSync(function, offlinePlayer -> Component.empty());
+    static PlaceholderResolve ofPlayerSync(Function<Player, String> function) {
+        return ofSync(function, offlinePlayer -> "");
     }
 
-    static PlaceholderResolve ofOfflinePlayer(Function<OfflinePlayer, CompletableFuture<Component>> function) {
+    static PlaceholderResolve ofOfflinePlayer(Function<OfflinePlayer, CompletableFuture<String>> function) {
         return function::apply;
     }
 
-    // 注册一个同步解析器，用于直接返回结果（不阻塞）
-    static PlaceholderResolve ofOfflinePlayerSync(Function<OfflinePlayer, Component> function) {
+    static PlaceholderResolve ofOfflinePlayerSync(Function<OfflinePlayer, String> function) {
         return context -> CompletableFuture.completedFuture(function.apply(context));
     }
 

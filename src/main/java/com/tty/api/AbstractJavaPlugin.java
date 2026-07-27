@@ -6,6 +6,8 @@ import com.tty.api.dto.TempRegisterService;
 import com.tty.api.configuration.BaseConfiguration;
 import com.tty.api.scheduler.RunTask;
 import com.tty.api.scheduler.Scheduler;
+import com.tty.api.service.impl.PlaceholderEngineImpl;
+import com.tty.api.service.placeholder.PlaceholderRegistry;
 import com.tty.api.state.StateService;
 import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
@@ -63,6 +65,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Getter
     private StatusManager statusManager;
 
+    @Getter
+    private PlaceholderEngineImpl engine;
+
     @Override
     public void onLoad() {
         this.scheduler = Scheduler.create(this);
@@ -105,6 +110,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.statusManager = new StatusManager();
         this.statusManager.registerStateMachine(this.services());
 
+        this.engine = new PlaceholderEngineImpl(this, this.placeholders());
+
         List<PlaceholderExpansion> expansions = this.expansions();
         if (expansions != null && Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             for (PlaceholderExpansion expansion : expansions) {
@@ -123,6 +130,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             this.checkVersionTask.cancel();
             this.checkVersionTask = null;
         }
+        this.engine.shutdown();
         this.disabling();
     }
 
@@ -158,6 +166,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Nullable protected abstract List<StateService<?>> services();
 
     @Nullable protected  abstract List<PlaceholderExpansion> expansions();
+
+    @Nullable protected abstract PlaceholderRegistry placeholders();
 
     public void reload(@Nullable CommandSender sender) {
         this.saveDefaultConfig();

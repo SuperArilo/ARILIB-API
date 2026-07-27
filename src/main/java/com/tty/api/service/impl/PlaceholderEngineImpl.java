@@ -1,12 +1,9 @@
 package com.tty.api.service.impl;
 
 import com.tty.api.AbstractJavaPlugin;
-import com.tty.api.ComponentTool;
 import com.tty.api.service.placeholder.PlaceholderEngine;
 import com.tty.api.service.placeholder.PlaceholderRegistry;
 import com.tty.api.utils.ColorConverterLegacy;
-import lombok.Getter;
-import lombok.Setter;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
@@ -28,12 +25,14 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     private final AbstractJavaPlugin plugin;
     private final ExecutorService executor = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
 
-    @Setter
-    @Getter
-    private PlaceholderRegistry registry;
+    private final PlaceholderRegistry registry;
 
-    public PlaceholderEngineImpl(AbstractJavaPlugin plugin) {
+    private final boolean t;
+
+    public PlaceholderEngineImpl(AbstractJavaPlugin plugin, PlaceholderRegistry registry) {
         this.plugin = plugin;
+        this.registry = Objects.requireNonNullElseGet(registry, PlaceholderRegistryImpl::new);
+        this.t = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
     }
 
     @Override
@@ -44,7 +43,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         return future.thenCompose(string -> {
 
             Matcher matcher = PATTERN.matcher(string);
-            Map<String, CompletableFuture<Component>> futures = new HashMap<>();
+            Map<String, CompletableFuture<String>> futures = new HashMap<>();
             while (matcher.find()) {
                 String key = matcher.group(1);
                 if (futures.containsKey(key)) continue;
@@ -52,14 +51,17 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             }
 
             if (futures.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> ComponentTool.text(string, Collections.emptyMap()), this.executor);
+                return CompletableFuture.supplyAsync(() -> this.build(string, null), this.executor);
             }
 
             CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
             return CompletableFuture.allOf(all).thenApplyAsync(v -> {
                 Map<String, Component> resolved = new HashMap<>(futures.size());
-                futures.forEach((k, f) -> resolved.put(k, f.join()));
-                return ComponentTool.text(string, resolved);
+                futures.forEach((k, f) -> {
+                    String join = f.join();
+                    resolved.put(k, Component.text(join == null ? "":join));
+                });
+                return this.build(string, resolved);
             }, this.executor);
 
         });
@@ -83,14 +85,14 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
                 }
             }
 
-            Map<String, CompletableFuture<Component>> futures = new HashMap<>(keys.size());
+            Map<String, CompletableFuture<String>> futures = new HashMap<>(keys.size());
             for (String key : keys) {
                 registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
             }
 
             if (futures.isEmpty()) {
                 return CompletableFuture.supplyAsync(() -> {
-                    List<Component> components = lines.stream().map(line -> ComponentTool.text(line, Collections.emptyMap())).toList();
+                    List<Component> components = lines.stream().map(line -> this.build(line, Collections.emptyMap())).toList();
                     return Component.join(JoinConfiguration.separator(Component.newline()), components);
                 }, this.executor);
             }
@@ -99,8 +101,11 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
             return CompletableFuture.allOf(all).thenApplyAsync(t -> {
                 Map<String, Component> resolved = new HashMap<>(futures.size());
 
-                futures.forEach((k, f) -> resolved.put(k, f.join()));
-                List<Component> components = lines.stream().map(line -> ComponentTool.text(line, resolved)).toList();
+                futures.forEach((k, f) -> {
+                    String join = f.join();
+                    resolved.put(k, Component.text(join == null ? "":join));
+                });
+                List<Component> components = lines.stream().map(line -> this.build(line, resolved)).toList();
                 return Component.join(JoinConfiguration.separator(Component.newline()), components);
             }, this.executor);
         });
@@ -109,39 +114,80 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     @Override
     public CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context) {
 
-        List<CompletableFuture<String>> futureList = list.stream().map(line -> processPlaceholder(line, context).thenApply(ColorConverterLegacy::convert)).toList();
+        List<CompletableFuture<String>> futureList = list.stream().map(line -> this.processPlaceholder(line, context).thenApply(ColorConverterLegacy::convert)).toList();
 
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenCompose(v -> {
 
-                    List<String> lines = futureList.stream().map(CompletableFuture::join).toList();
+            List<String> lines = futureList.stream().map(CompletableFuture::join).toList();
 
-                    Set<String> keys = new HashSet<>();
-                    for (String line : lines) {
-                        Matcher matcher = PATTERN.matcher(line);
-                        while (matcher.find()) {
-                            keys.add(matcher.group(1));
-                        }
-                    }
+            Set<String> keys = new HashSet<>();
+            for (String line : lines) {
+                Matcher matcher = PATTERN.matcher(line);
+                while (matcher.find()) {
+                    keys.add(matcher.group(1));
+                }
+            }
 
-                    Map<String, CompletableFuture<Component>> futures = new HashMap<>(keys.size());
-                    for (String key : keys) {
-                        registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
-                    }
+            Map<String, CompletableFuture<String>> futures = new HashMap<>(keys.size());
+            for (String key : keys) {
+                registry.find(key, context).ifPresent(resolver -> futures.put(key, resolver.resolve(context)));
+            }
 
-                    if (futures.isEmpty()) {
-                        return CompletableFuture.supplyAsync(() -> lines.stream().map(line -> ComponentTool.text(line, Collections.emptyMap())).toList(), this.executor);
-                    }
+            if (futures.isEmpty()) {
+                return CompletableFuture.supplyAsync(() -> lines.stream().map(line -> this.build(line, Collections.emptyMap())).toList(), this.executor);
+            }
 
-                    CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
-                    return CompletableFuture.allOf(all).thenApplyAsync(t -> {
+            CompletableFuture<?>[] all = futures.values().toArray(new CompletableFuture[0]);
+            return CompletableFuture.allOf(all).thenApplyAsync(t -> {
 
-                        Map<String, Component> resolved = new HashMap<>(futures.size());
-                        futures.forEach((k, f) -> resolved.put(k, f.join()));
-                        return lines.stream().map(line -> ComponentTool.text(line, resolved)).toList();
-
-                    }, this.executor);
-
+                Map<String, Component> resolved = new HashMap<>(futures.size());
+                futures.forEach((k, f) -> {
+                    String join = f.join();
+                    resolved.put(k, Component.text(join == null ? "":join));
                 });
+                return lines.stream().map(line -> this.build(line, resolved)).toList();
+
+            }, this.executor);
+
+        });
+    }
+
+    @Override
+    public Component directRender(String template) {
+        return this.build(this.processPlaceholder(template, null).join(), null);
+    }
+
+    @Override
+    public Component directRender(String template, OfflinePlayer context) {
+        return this.build(this.processPlaceholder(template, context).join(), null);
+    }
+
+    @Override
+    public Component directRender(String template, Map<String, Component> map) {
+        return this.build(this.processPlaceholder(template, null).join(), map);
+    }
+
+    @Override
+    public Component directRender(String template, OfflinePlayer context, Map<String, Component> map) {
+        return this.build(this.processPlaceholder(template, context).join(), map);
+    }
+
+    @Override
+    public Component directRenderList(List<String> templates, OfflinePlayer context) {
+        List<Component> list = new ArrayList<>();
+        for (String template : templates) {
+            list.add(this.build(this.processPlaceholder(template, context).join(), null));
+        }
+        return Component.join(JoinConfiguration.separator(Component.newline()), list);
+    }
+
+    @Override
+    public List<Component> directRenderAsComponentList(List<String> list, OfflinePlayer context) {
+        List<Component> componentList = new ArrayList<>();
+        for (String s : list) {
+            componentList.add(this.build(this.processPlaceholder(s, context).join(), null));
+        }
+        return componentList;
     }
 
     @Override
@@ -152,7 +198,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     private CompletableFuture<String> processPlaceholder(@Nullable String content, OfflinePlayer offlinePlayer) {
         if (content == null || content.isEmpty()) return CompletableFuture.completedFuture(content);
 
-        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+        if (this.t) {
             if (Bukkit.getServer().isPrimaryThread()) {
                 return CompletableFuture.completedFuture(PlaceholderAPI.setPlaceholders(offlinePlayer, content));
             } else {
@@ -169,4 +215,5 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
         }
         return CompletableFuture.completedFuture(content);
     }
+
 }
