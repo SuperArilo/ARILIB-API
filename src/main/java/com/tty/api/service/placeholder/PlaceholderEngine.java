@@ -1,6 +1,7 @@
 package com.tty.api.service.placeholder;
 
 import com.tty.api.utils.ColorConverterLegacy;
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -10,6 +11,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.title.Title;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -24,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface PlaceholderEngine {
 
+    boolean t = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
 
     CompletableFuture<Component> render(String template, OfflinePlayer context);
     CompletableFuture<Component> renderList(List<String> templates, OfflinePlayer context);
@@ -115,6 +118,11 @@ public interface PlaceholderEngine {
             return tc.decoration(TextDecoration.ITALIC, false);
         }
         return Component.empty().append(component.decoration(TextDecoration.ITALIC, false));
+    }
+
+    default String processPlaceholder(@Nullable String content, OfflinePlayer offlinePlayer) {
+        if (content == null || content.isEmpty()) return content;
+        return t ? ColorConverterLegacy.convert(PlaceholderAPI.setPlaceholders(offlinePlayer, content)):content;
     }
 
 }
