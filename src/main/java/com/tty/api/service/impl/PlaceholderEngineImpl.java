@@ -38,9 +38,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     @Override
     public CompletableFuture<Component> render(String template, OfflinePlayer context) {
 
-        CompletableFuture<String> future = this.processPlaceholder(template, context).thenApply(ColorConverterLegacy::convert);
-
-        return future.thenCompose(string -> {
+        return this.processPlaceholder(template, context).thenCompose(string -> {
 
             Matcher matcher = PATTERN.matcher(string);
             Map<String, CompletableFuture<String>> futures = new HashMap<>();
@@ -59,7 +57,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
                 Map<String, Component> resolved = new HashMap<>(futures.size());
                 futures.forEach((k, f) -> {
                     String join = f.join();
-                    resolved.put(k, Component.text(join == null ? "":join));
+                    resolved.put(k, this.build(join == null ? "":join, null));
                 });
                 return this.build(string, resolved);
             }, this.executor);
@@ -70,7 +68,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     @Override
     public CompletableFuture<Component> renderList(List<String> list, OfflinePlayer context) {
 
-        List<CompletableFuture<String>> futureList = list.stream().map(line -> this.processPlaceholder(line, context).thenApply(ColorConverterLegacy::convert)).toList();
+        List<CompletableFuture<String>> futureList = list.stream().map(line -> this.processPlaceholder(line, context)).toList();
 
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenCompose(v -> {
 
@@ -103,7 +101,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
                 futures.forEach((k, f) -> {
                     String join = f.join();
-                    resolved.put(k, Component.text(join == null ? "":join));
+                    resolved.put(k, this.build(join == null ? "":join, null));
                 });
                 List<Component> components = lines.stream().map(line -> this.build(line, resolved)).toList();
                 return Component.join(JoinConfiguration.separator(Component.newline()), components);
@@ -114,7 +112,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     @Override
     public CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context) {
 
-        List<CompletableFuture<String>> futureList = list.stream().map(line -> this.processPlaceholder(line, context).thenApply(ColorConverterLegacy::convert)).toList();
+        List<CompletableFuture<String>> futureList = list.stream().map(line -> this.processPlaceholder(line, context)).toList();
 
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenCompose(v -> {
 
@@ -143,7 +141,7 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
                 Map<String, Component> resolved = new HashMap<>(futures.size());
                 futures.forEach((k, f) -> {
                     String join = f.join();
-                    resolved.put(k, Component.text(join == null ? "":join));
+                    resolved.put(k, this.build(join == null ? "":join, null));
                 });
                 return lines.stream().map(line -> this.build(line, resolved)).toList();
 
@@ -200,12 +198,12 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
 
         if (this.t) {
             if (Bukkit.getServer().isPrimaryThread()) {
-                return CompletableFuture.completedFuture(PlaceholderAPI.setPlaceholders(offlinePlayer, content));
+                return CompletableFuture.completedFuture(ColorConverterLegacy.convert(PlaceholderAPI.setPlaceholders(offlinePlayer, content)));
             } else {
                 CompletableFuture<String> future = new CompletableFuture<>();
                 this.plugin.getScheduler().run(i -> {
                     try {
-                        future.complete(PlaceholderAPI.setPlaceholders(offlinePlayer, content));
+                        future.complete(ColorConverterLegacy.convert(PlaceholderAPI.setPlaceholders(offlinePlayer, content)));
                     } catch (Exception e) {
                         future.completeExceptionally(e);
                     }
