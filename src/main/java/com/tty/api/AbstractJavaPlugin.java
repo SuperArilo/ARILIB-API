@@ -266,12 +266,10 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             if (value == null) {
                 this.log.warn("无法检查可更新的版本，请检查网络后重试");
             } else if (value.hasNewVersion()) {
-                synchronized (this.log) {
-                    this.log.info("=========================================");
-                    this.log.info("发现新版本: {}", value.getRemoteVersion());
-                    this.log.info("当前版本: {}", value.getCurrentVersion());
-                    this.log.info("=========================================");
-                }
+                this.log.info("=========================================");
+                this.log.info("发现新版本: {}", value.getRemoteVersion());
+                this.log.info("当前版本: {}", value.getCurrentVersion());
+                this.log.info("=========================================");
             }
         }).exceptionallyAsync(i -> {
             this.getLog().error(i);
