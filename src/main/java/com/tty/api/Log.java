@@ -37,45 +37,45 @@ public class Log {
         this.debug = debug;
     }
 
-    public void info(String msg, Object... args) {
+    public synchronized void info(String msg, Object... args) {
         this.log(Level.INFO, msg, args);
     }
 
-    public void warn(String msg, Object... args) {
+    public synchronized void warn(String msg, Object... args) {
         this.log(Level.WARNING, msg, args);
     }
 
-    public void warn(Throwable throwable) {
+    public synchronized void warn(Throwable throwable) {
         this.log(Level.WARNING, throwable, null);
     }
 
-    public void warn(Throwable throwable, String msg, Object... args) {
+    public synchronized void warn(Throwable throwable, String msg, Object... args) {
         this.log(Level.WARNING, throwable, msg, args);
     }
 
-    public void error(String msg, Object... args) {
+    public synchronized void error(String msg, Object... args) {
         this.log(Level.SEVERE, msg, args);
     }
 
-    public void error(Throwable throwable) {
+    public synchronized void error(Throwable throwable) {
         this.log(Level.SEVERE, throwable, null);
     }
 
-    public void error(Throwable throwable, String msg, Object... args) {
+    public synchronized void error(Throwable throwable, String msg, Object... args) {
         this.log(Level.SEVERE, throwable, msg, args);
     }
 
-    public void debug(Throwable throwable) {
+    public synchronized void debug(Throwable throwable) {
         if (!this.debug) return;
         this.log(Level.INFO, throwable, PREFIX_DEBUG);
     }
 
-    public void debug(String msg, Object... args) {
+    public synchronized void debug(String msg, Object... args) {
         if (!this.debug) return;
         this.log(Level.INFO, PREFIX_DEBUG + wrapCaller(msg), args);
     }
 
-    public void debug(Throwable throwable, String msg, Object... args) {
+    public synchronized void debug(Throwable throwable, String msg, Object... args) {
         if (!this.debug) return;
         this.log(Level.INFO, throwable, PREFIX_DEBUG + wrapCaller(msg), args);
     }
