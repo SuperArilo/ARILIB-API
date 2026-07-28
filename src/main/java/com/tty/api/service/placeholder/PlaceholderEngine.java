@@ -1,15 +1,11 @@
 package com.tty.api.service.placeholder;
 
-import com.tty.api.utils.ColorConverterLegacy;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.Tag;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -21,23 +17,83 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public interface PlaceholderEngine {
 
     boolean t = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
 
+    /**
+     * 渲染指定内容，可经过 PlaceholderAPI 和插件自定义占位符替换
+     * @param template 渲染内容
+     * @param context 上下文要求
+     * @return 生成的 Component
+     */
     CompletableFuture<Component> render(String template, OfflinePlayer context);
+
+    /**
+     * 将指定字符串数组渲染为可换行的 Component ，可经过 PlaceholderAPI 和插件自定义占位符替换
+     * @param templates 渲染内容
+     * @param context 上下文要求
+     * @return 生成的 Component
+     */
     CompletableFuture<Component> renderList(List<String> templates, OfflinePlayer context);
+
+    /**
+     * 直接将数组字符串渲染为 Component 数组，可经过 PlaceholderAPI 和插件自定义占位符替换
+     * @param list 渲染内容
+     * @param context 上下文要求
+     * @return 生成的 Component
+     */
     CompletableFuture<List<Component>> renderAsComponentList(List<String> list, OfflinePlayer context);
 
+    /**
+     * 直接渲染文字，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换
+     * @param template 渲染内容
+     * @return 生成的 Component
+     */
     Component directRender(String template);
+
+    /**
+     * 直接渲染文字，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换
+     * @param template 渲染内容
+     * @param context 上下文要求
+     * @return 生成的 Component
+     */
     Component directRender(String template, OfflinePlayer context);
+
+    /**
+     * 直接渲染文字，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换，可手动替换占位符
+     * @param template 渲染内容
+     * @param map 可手动替换的占位符
+     * @return 生成的 Component
+     */
     Component directRender(String template, Map<String, Component> map);
+
+    /**
+     * 直接渲染文字，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换
+     * @param template 渲染内容
+     * @param context 上下文要求
+     * @param map 可手动替换的占位符
+     * @return 生成的 Component
+     */
     Component directRender(String template, OfflinePlayer context, Map<String, Component> map);
+
+    /**
+     * 直接将数组字符串渲染为可换行 Component，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换
+     * @param templates 渲染数组内容
+     * @param context 上下文要求
+     * @return 生成的 Component
+     */
     Component directRenderList(List<String> templates, OfflinePlayer context);
-    List<Component> directRenderAsComponentList(List<String> list, OfflinePlayer context);
+
+    /**
+     * 直接将数组字符串渲染为 Component 数组，可经过 PlaceholderAPI, 无法经过插件自定义占位符替换，可手动替换占位符
+     * @param templates 渲染数组内容
+     * @param context 上下文要求
+     * @return 生成的 Component 数组
+     */
+    List<Component> directRenderAsComponentList(List<String> templates, OfflinePlayer context);
 
     void shutdown();
 
@@ -93,36 +149,20 @@ public interface PlaceholderEngine {
         }
     }
 
-    @SuppressWarnings("PatternValidation")
     default Component build(@Nullable String template, Map<String, Component> placeholders) {
-        if (template == null) {
-            template = "";
-        }
-        template = ColorConverterLegacy.convert(template);
-        TagResolver resolver;
-        if (placeholders == null || placeholders.isEmpty()) {
-            resolver = TagResolver.empty();
-        } else {
-            TagResolver.Builder builder = TagResolver.builder();
-            for (Map.Entry<String, Component> e : placeholders.entrySet()) {
-                String key = e.getKey();
-                if (key == null) continue;
-                Component value = e.getValue();
-                builder.tag(key, Tag.selfClosingInserting(Objects.requireNonNullElseGet(value, Component::empty)));
+        if (template == null) template = "";
+        Component deserialize = LegacyComponentSerializer.legacySection().deserialize(template.replace('&', '§'));
+        if (placeholders != null) {
+            for (Map.Entry<String, Component> entry : placeholders.entrySet()) {
+                deserialize = deserialize.replaceText(TextReplacementConfig.builder().matchLiteral("<" + entry.getKey() + ">").replacement(entry.getValue()).build());
             }
-            resolver = builder.build();
         }
-
-        Component component = MiniMessage.miniMessage().deserialize(template, resolver);
-        if (component instanceof TextComponent tc) {
-            return tc.decoration(TextDecoration.ITALIC, false);
-        }
-        return Component.empty().append(component.decoration(TextDecoration.ITALIC, false));
+        return deserialize;
     }
 
     default String processPlaceholder(@Nullable String content, OfflinePlayer offlinePlayer) {
         if (content == null || content.isEmpty()) return content;
-        return t ? ColorConverterLegacy.convert(PlaceholderAPI.setPlaceholders(offlinePlayer, content)):content;
+        return t ? PlaceholderAPI.setPlaceholders(offlinePlayer, content):content;
     }
 
 }
