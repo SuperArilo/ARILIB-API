@@ -424,21 +424,23 @@ public abstract class EntityRepository<T> {
      * @param partition 作用区域
      */
     private void cacheEntity(T entity, PartitionKey partition) {
-        PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
-        if (pkKey != null) {
-            this.entityCache.put(pkKey, entity);
-            this.debug("Entity cached (pk): {}", pkKey);
-        } else {
-            LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
-            pkKey = new PartitionedKey<>(partition, QueryKey.of(wrapper));
-            this.entityCache.put(pkKey, entity);
-            this.debug("Entity cached (fallback): {}", pkKey);
-        }
-
         List<PartitionedKey<QueryKey>> cacheKeys = this.buildCacheKeyQueryKeys(entity, partition);
-        for (PartitionedKey<QueryKey> key : cacheKeys) {
-            this.entityCache.put(key, entity);
-            this.debug("Entity cached (cache-key): {}", key);
+        if (!cacheKeys.isEmpty()) {
+            for (PartitionedKey<QueryKey> key : cacheKeys) {
+                this.entityCache.put(key, entity);
+                this.debug("Entity cached (cache-key): {}", key);
+            }
+        } else {
+            PartitionedKey<QueryKey> pkKey = buildPrimaryKeyQueryKey(entity, partition);
+            if (pkKey != null) {
+                this.entityCache.put(pkKey, entity);
+                this.debug("Entity cached (pk): {}", pkKey);
+            } else {
+                LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>(entity);
+                pkKey = new PartitionedKey<>(partition, QueryKey.of(wrapper));
+                this.entityCache.put(pkKey, entity);
+                this.debug("Entity cached (fallback): {}", pkKey);
+            }
         }
     }
 
