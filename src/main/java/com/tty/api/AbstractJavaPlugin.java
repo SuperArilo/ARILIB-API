@@ -110,16 +110,15 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
         this.statusManager = new StatusManager();
         this.statusManager.registerStateMachine(this.services());
 
-        this.engine = new PlaceholderEngineImpl(this.placeholders());
-
-        List<PlaceholderExpansion> expansions = this.expansions();
-        if (expansions != null && Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+        if (Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            List<PlaceholderExpansion> expansions = this.expansions();
+            if (expansions == null) return;
             for (PlaceholderExpansion expansion : expansions) {
                 expansion.register();
                 this.getLog().debug("register expansion {}", expansion.getClass().getName());
             }
         }
-
+        this.engine = new PlaceholderEngineImpl(this.placeholders());
         this.checkVersionTask = this.createCheckVersionTask();
     }
 
