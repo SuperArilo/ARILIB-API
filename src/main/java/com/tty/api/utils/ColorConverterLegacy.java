@@ -1,12 +1,14 @@
 package com.tty.api.utils;
 
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ColorConverterLegacy {
 
     private static final Map<Character, String> LEGACY_MAP = new HashMap<>();
+    private static final Pattern BUNGEECORD_RGB = Pattern.compile("§x(§[0-9a-fA-F]){6}");
 
     static {
         LEGACY_MAP.put('0', "black");
@@ -26,9 +28,29 @@ public class ColorConverterLegacy {
         LEGACY_MAP.put('e', "yellow");
         LEGACY_MAP.put('f', "white");
         LEGACY_MAP.put('r', "reset");
+         LEGACY_MAP.put('l', "bold");
+         LEGACY_MAP.put('o', "italic");
     }
 
     public static String convert(String input) {
+        if (input == null) return "";
+        String afterRgb = convertBungeeCordRgb(input);
+        return convertLegacyCodes(afterRgb);
+    }
+
+    private static String convertBungeeCordRgb(String input) {
+        Matcher matcher = BUNGEECORD_RGB.matcher(input);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String group = matcher.group();
+            String hex = group.replaceAll("§x|§", "");
+            matcher.appendReplacement(sb, "<#" + hex + ">");
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+
+    private static String convertLegacyCodes(String input) {
         StringBuilder sb = new StringBuilder();
         char[] chars = input.toCharArray();
         for (int i = 0; i < chars.length; i++) {
@@ -46,4 +68,5 @@ public class ColorConverterLegacy {
         }
         return sb.toString();
     }
+
 }

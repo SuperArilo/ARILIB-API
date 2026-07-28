@@ -1,11 +1,12 @@
 package com.tty.api.service.placeholder;
 
+import com.tty.api.utils.ColorConverterLegacy;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -151,13 +152,13 @@ public interface PlaceholderEngine {
 
     default Component build(@Nullable String template, Map<String, Component> placeholders) {
         if (template == null) template = "";
-        Component deserialize = LegacyComponentSerializer.legacySection().deserialize(template.replace('&', '§'));
+        Component result = MiniMessage.miniMessage().deserialize(ColorConverterLegacy.convert(template));
         if (placeholders != null) {
             for (Map.Entry<String, Component> entry : placeholders.entrySet()) {
-                deserialize = deserialize.replaceText(TextReplacementConfig.builder().matchLiteral("<" + entry.getKey() + ">").replacement(entry.getValue()).build());
+                result = result.replaceText(TextReplacementConfig.builder().matchLiteral("<" + entry.getKey() + ">").replacement(entry.getValue()).build());
             }
         }
-        return deserialize;
+        return result;
     }
 
     default String processPlaceholder(@Nullable String content, OfflinePlayer offlinePlayer) {
