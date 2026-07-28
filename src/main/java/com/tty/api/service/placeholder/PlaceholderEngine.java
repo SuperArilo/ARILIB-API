@@ -3,9 +3,11 @@ package com.tty.api.service.placeholder;
 import com.tty.api.utils.ColorConverterLegacy;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
@@ -158,7 +160,10 @@ public interface PlaceholderEngine {
                 result = result.replaceText(TextReplacementConfig.builder().matchLiteral("<" + entry.getKey() + ">").replacement(entry.getValue()).build());
             }
         }
-        return result;
+        if (result instanceof TextComponent tc) {
+            return tc.decoration(TextDecoration.ITALIC, false);
+        }
+        return Component.empty().append(result.decoration(TextDecoration.ITALIC, false));
     }
 
     default String processPlaceholder(@Nullable String content, OfflinePlayer offlinePlayer) {
