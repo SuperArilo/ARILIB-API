@@ -28,45 +28,46 @@ public class ColorConverterLegacy {
         LEGACY_MAP.put('e', "yellow");
         LEGACY_MAP.put('f', "white");
         LEGACY_MAP.put('r', "reset");
-         LEGACY_MAP.put('l', "bold");
-         LEGACY_MAP.put('o', "italic");
+        LEGACY_MAP.put('l', "bold");
+        LEGACY_MAP.put('o', "italic");
+        LEGACY_MAP.put('n', "underlined");
+        LEGACY_MAP.put('m', "strikethrough");
+        LEGACY_MAP.put('k', "obfuscated");
     }
 
     public static String convert(String input) {
         if (input == null) return "";
-        String afterRgb = convertBungeeCordRgb(input);
-        return convertLegacyCodes(afterRgb);
+        return convertLegacyCodes(convertBungeeCordRgb(input.replace('&', '§')));
     }
 
     private static String convertBungeeCordRgb(String input) {
         Matcher matcher = BUNGEECORD_RGB.matcher(input);
-        StringBuilder sb = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
         while (matcher.find()) {
-            String group = matcher.group();
-            String hex = group.replaceAll("§x|§", "");
-            matcher.appendReplacement(sb, "<#" + hex + ">");
+            String hex = matcher.group().replaceAll("§x|§", "");
+            matcher.appendReplacement(builder, "<#" + hex + ">");
         }
-        matcher.appendTail(sb);
-        return sb.toString();
+        matcher.appendTail(builder);
+        return builder.toString();
     }
 
     private static String convertLegacyCodes(String input) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
         char[] chars = input.toCharArray();
         for (int i = 0; i < chars.length; i++) {
             char c = chars[i];
             if ((c == '&' || c == '§') && i + 1 < chars.length) {
                 char code = Character.toLowerCase(chars[i + 1]);
-                String mmColor = LEGACY_MAP.get(code);
-                if (mmColor != null) {
-                    sb.append("<").append(mmColor).append(">");
+                String color = LEGACY_MAP.get(code);
+                if (color != null) {
+                    builder.append("<").append(color).append(">");
                     i++;
                     continue;
                 }
             }
-            sb.append(c);
+            builder.append(c);
         }
-        return sb.toString();
+        return builder.toString();
     }
 
 }
