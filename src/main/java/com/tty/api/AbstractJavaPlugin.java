@@ -254,6 +254,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     }
 
     private RunTask createCheckVersionTask() {
+        if (this.isDebug()) return null;
         return this.getScheduler().runAsyncAtFixedRate(i -> {
             if (i.isCancelled()) return;
             this.checkUpdate();
