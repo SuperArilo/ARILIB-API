@@ -217,7 +217,7 @@ public class ConfigurationManager {
         this.client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                plugin.getLog().error(e);
+                plugin.getLog().warn("Request failed for {}: {} (cause: {})", call.request().url(), e.getClass().getSimpleName(), e.getMessage());
             }
 
             @Override
