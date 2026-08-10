@@ -29,7 +29,6 @@ public abstract class StateService<T extends State> {
     @Getter
     private final boolean isAsync;
 
-    private final Object lock = new Object();
     private volatile RunTask runTask;
 
     private final List<T> stateList = Collections.synchronizedList(new ArrayList<>());
@@ -56,30 +55,36 @@ public abstract class StateService<T extends State> {
     }
 
     private void execute() {
-        if (this.stateList.isEmpty()) {
-            synchronized (this.lock) {
-                if (this.stateList.isEmpty()) {
-                    if (this.runTask != null) {
-                        this.runTask.cancel();
-                        this.runTask = null;
-                    }
+        RunTask taskToCancel = null;
+        synchronized (this.stateList) {
+            if (this.stateList.isEmpty()) {
+                if (this.runTask != null) {
+                    taskToCancel = this.runTask;
+                    this.runTask = null;
                 }
             }
+        }
+        if (taskToCancel != null) {
+            taskToCancel.cancel();
             return;
         }
+
+        List<T> finished = new ArrayList<>();
+        List<T> earlyExits = new ArrayList<>();
+
         synchronized (this.stateList) {
             Iterator<T> iterator = this.stateList.iterator();
             while (iterator.hasNext()) {
                 T state = iterator.next();
                 if (state.isOver()) {
                     iterator.remove();
-                    this.onEarlyExit(state);
+                    earlyExits.add(state);
                     continue;
                 }
 
                 if (state.isDone()) {
                     iterator.remove();
-                    this.onFinished(state);
+                    finished.add(state);
                     continue;
                 }
 
@@ -92,13 +97,13 @@ public abstract class StateService<T extends State> {
                         this.loopExecution(state);
                         if (state.isOver()) {
                             iterator.remove();
-                            this.onEarlyExit(state);
+                            earlyExits.add(state);
                             continue;
                         }
                         if (state.isDone()) {
                             if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
                             iterator.remove();
-                            this.onFinished(state);
+                            finished.add(state);
                         }
                     } catch (Exception e) {
                         this.plugin.getLog().error(e);
@@ -109,20 +114,29 @@ public abstract class StateService<T extends State> {
                 }
             }
         }
+
+        for (T state : finished) {
+            this.onFinished(state);
+        }
+        for (T state : earlyExits) {
+            this.onEarlyExit(state);
+        }
     }
 
     public void abort() {
+        RunTask taskToCancel;
+        List<T> remaining;
         synchronized (this.stateList) {
-            synchronized (this.lock) {
-                if (this.runTask != null) {
-                    this.runTask.cancel();
-                    this.runTask = null;
-                }
-            }
-            for (T i : this.stateList) {
-                this.onServiceAbort(i);
-            }
+            taskToCancel = this.runTask;
+            this.runTask = null;
+            remaining = new ArrayList<>(this.stateList);
             this.stateList.clear();
+        }
+        if (taskToCancel != null) {
+            taskToCancel.cancel();
+        }
+        for (T state : remaining) {
+            this.onServiceAbort(state);
         }
     }
 
@@ -135,10 +149,8 @@ public abstract class StateService<T extends State> {
             this.stateList.add(state);
             this.passAddState(state);
 
-            synchronized (this.lock) {
-                if (runTask == null) {
-                    this.runTask = this.createTask(this.rate, this.c, this.isAsync);
-                }
+            if (this.runTask == null) {
+                this.runTask = this.createTask(this.rate, this.c, this.isAsync);
             }
             return true;
         }
@@ -175,7 +187,9 @@ public abstract class StateService<T extends State> {
      * @return 空 true
      */
     public boolean stateIsEmpty() {
-        return this.stateList.isEmpty();
+        synchronized (this.stateList) {
+            return this.stateList.isEmpty();
+        }
     }
     /**
      * 检查是否允许添加状态
