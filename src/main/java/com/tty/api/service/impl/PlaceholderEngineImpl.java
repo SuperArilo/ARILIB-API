@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -169,6 +170,14 @@ public class PlaceholderEngineImpl implements PlaceholderEngine {
     @Override
     public void shutdown() {
         this.executor.shutdown();
+        try {
+            if (!this.executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                this.executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            this.executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
 }
