@@ -92,25 +92,56 @@ public abstract class StateService<T extends State> {
 
                 if (!state.isPending()) {
                     state.setPending(true);
-                    try {
-                        state.increment();
-                        this.loopExecution(state);
-                        if (state.isOver()) {
-                            iterator.remove();
-                            earlyExits.add(state);
-                            continue;
-                        }
-                        if (state.isDone()) {
-                            if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
-                            iterator.remove();
-                            finished.add(state);
-                        }
-                    } catch (Exception e) {
-                        this.plugin.getLog().error(e);
-                        state.setOver(true);
-                    } finally {
-                        state.setPending(false);
+                }
+            }
+        }
+
+        List<T> toExecute;
+        synchronized (this.stateList) {
+            toExecute = new ArrayList<>();
+            for (T state : this.stateList) {
+                if (!state.isOver() && !state.isDone() && !(state instanceof AsyncState && ((AsyncState) state).isRunning()) && state.isPending()) {
+                    state.setPending(false);
+                    toExecute.add(state);
+                }
+            }
+        }
+
+        for (T state : toExecute) {
+            try {
+                state.increment();
+                this.loopExecution(state);
+            } catch (Exception e) {
+                this.plugin.getLog().error(e);
+                state.setOver(true);
+            } finally {
+                state.setPending(false);
+            }
+        }
+
+        synchronized (this.stateList) {
+            Iterator<T> iterator = this.stateList.iterator();
+            while (iterator.hasNext()) {
+                T state = iterator.next();
+                boolean inToExecute = false;
+                for (T candidate : toExecute) {
+                    if (candidate == state) {
+                        inToExecute = true;
+                        break;
                     }
+                }
+                if (!inToExecute) continue;
+
+                if (state.isOver()) {
+                    iterator.remove();
+                    earlyExits.add(state);
+                    continue;
+                }
+
+                if (state.isDone()) {
+                    if (state instanceof AsyncState && ((AsyncState) state).isRunning()) continue;
+                    iterator.remove();
+                    finished.add(state);
                 }
             }
         }
