@@ -13,6 +13,7 @@ import com.tty.api.utils.VersionUtil;
 import lombok.Getter;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import okhttp3.*;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -112,10 +113,11 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
         if (Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             List<PlaceholderExpansion> expansions = this.expansions();
-            if (expansions == null) return;
-            for (PlaceholderExpansion expansion : expansions) {
-                expansion.register();
-                this.getLog().debug("register expansion {}", expansion.getClass().getName());
+            if (expansions != null) {
+                for (PlaceholderExpansion expansion : expansions) {
+                    expansion.register();
+                    this.getLog().debug("register expansion {}", expansion.getClass().getName());
+                }
             }
         }
         this.engine = new PlaceholderEngineImpl(this.placeholders());
@@ -124,12 +126,16 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        this.configurationManager.saveAllFiles();
+        if (this.configurationManager != null) {
+            this.configurationManager.saveAllFiles();
+        }
         if (this.checkVersionTask != null) {
             this.checkVersionTask.cancel();
             this.checkVersionTask = null;
         }
-        this.engine.shutdown();
+        if (this.engine != null) {
+            this.engine.shutdown();
+        }
         this.disabling();
     }
 
@@ -176,9 +182,9 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             if (stream == null) return;
             try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(reader);
-                double defaultVersion = defaultConfig.getDouble("version", 1.0);
-                double currentVersion = this.getConfig().getDouble("version", 0);
-                if (currentVersion < defaultVersion) {
+                String defaultVersion = defaultConfig.getString("version", "1.0");
+                String currentVersion = this.getConfig().getString("version", "0");
+                if (new ComparableVersion(currentVersion).compareTo(new ComparableVersion(defaultVersion)) < 0) {
                     this.getLog().info("your config.yml is outdated v{}. please delete it to regenerate the latest version v{}", currentVersion, defaultVersion);
                 }
             }
