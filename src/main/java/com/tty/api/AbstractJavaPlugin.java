@@ -140,6 +140,13 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     }
 
     /**
+     * 用于插件更新的基础地址
+     * @return 插件更新的基础地址
+     */
+    @Nullable
+    protected abstract String getGithubAuthorLink();
+
+    /**
      * 插件 load 阶段
      */
     protected abstract void loading();
@@ -217,7 +224,7 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
             current = this.getDescription().getVersion();
         }
 
-        String apiUrl = "https://api.github.com/repos/SuperArilo/" + this.getName().toUpperCase() + "/releases/latest";
+        String apiUrl = this.getGithubAuthorLink() + this.getName().toUpperCase() + "/releases/latest";
         Request request = new Request.Builder()
                 .url(apiUrl)
                 .header("Accept", "application/vnd.github.v3+json")
@@ -260,7 +267,8 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     }
 
     private RunTask createCheckVersionTask() {
-        if (this.isDebug()) return null;
+        String link = this.getGithubAuthorLink();
+        if (this.isDebug() || link == null || link.isEmpty()) return null;
         return this.getScheduler().runAsyncAtFixedRate(i -> {
             if (i.isCancelled()) return;
             this.checkUpdate();
