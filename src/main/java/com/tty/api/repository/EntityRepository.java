@@ -364,6 +364,36 @@ public abstract class EntityRepository<T> {
                 this.debug("Failed to access cache key field '{}': {}", field.getName(), e.getMessage());
             }
         }
+        // 把 @CacheKey 字段按声明顺序拼成一条键
+        if (cacheKeyFields.size() > 1) {
+            LambdaQueryWrapper<T> combined = new LambdaQueryWrapper<>(entity);
+            int index = 0;
+            for (Field field : cacheKeyFields) {
+                try {
+                    Object value = field.get(entity);
+                    if (value == null) {
+                        index = -1;
+                        break;
+                    }
+                    combined.apply(camelToUnderline(field.getName()) + " = {0}", value);
+                    index++;
+                } catch (IllegalAccessException e) {
+                    index = -1;
+                    this.debug("Failed to access cache key field '{}': {}", field.getName(), e.getMessage());
+                    break;
+                }
+            }
+            if (index > 1) {
+                try {
+                    String combinedSql = combined.getSqlSegment();
+                    if (combinedSql != null && !combinedSql.isBlank()) {
+                        keys.add(new PartitionedKey<>(partition, QueryKey.of(combined)));
+                    }
+                } catch (RuntimeException e) {
+                    this.debug("Failed to build combined cache key: {}", e.getMessage());
+                }
+            }
+        }
         return keys;
     }
 
