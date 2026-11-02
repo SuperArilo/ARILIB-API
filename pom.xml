@@ -15,9 +15,10 @@
 
         <paper.mc.version>1.21.3</paper.mc.version>
         <folia.mc.version>1.21.4</folia.mc.version>
-        <version.suffix>-R0.1-SNAPSHOT</version.suffix>
+        <paper.mc.version.suffix>-R0.1-SNAPSHOT</paper.mc.version.suffix>
+        <folia.mc.version.suffix>-R0.1-SNAPSHOT</folia.mc.version.suffix>
 
-        <projectlombok.version>1.18.36</projectlombok.version>
+        <projectlombok.version>1.18.48</projectlombok.version>
         <maven-artifact.version>3.9.6</maven-artifact.version>
         <placeholderapi.version>2.12.0</placeholderapi.version>
         <VaultAPI.version>1.7.1</VaultAPI.version>
@@ -43,12 +44,12 @@
             <dependency>
                 <groupId>io.papermc.paper</groupId>
                 <artifactId>paper-api</artifactId>
-                <version>${paper.mc.version}${version.suffix}</version>
+                <version>${paper.mc.version}${paper.mc.version.suffix}</version>
             </dependency>
             <dependency>
                 <groupId>dev.folia</groupId>
                 <artifactId>folia-api</artifactId>
-                <version>${folia.mc.version}${version.suffix}</version>
+                <version>${folia.mc.version}${folia.mc.version.suffix}</version>
             </dependency>
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
@@ -201,6 +202,15 @@
                         <includeOnlyProperty>git.commit.user.name</includeOnlyProperty>
                         <includeOnlyProperty>git.tag</includeOnlyProperty>
                     </includeOnlyProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.16.0</version>
+                <configuration>
+                    <proc>full</proc>
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
         </plugins>
