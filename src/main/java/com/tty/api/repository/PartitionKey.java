@@ -9,6 +9,8 @@ import java.util.Objects;
  * 多查一使用 global，一查多使用 Of
  * @param value
  */
+
+@Deprecated
 public record PartitionKey(Object value) {
 
     private static final PartitionKey GLOBAL = new PartitionKey("__GLOBAL__");

@@ -4,6 +4,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
+
+@Deprecated
 public record PartitionedKey<K>(PartitionKey partition, K key) {
 
     public PartitionedKey(PartitionKey partition, K key) {

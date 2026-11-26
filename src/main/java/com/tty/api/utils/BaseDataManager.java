@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+@Deprecated
 public abstract class BaseDataManager<T> {
 
     @Getter

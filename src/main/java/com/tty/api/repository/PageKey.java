@@ -2,6 +2,8 @@ package com.tty.api.repository;
 
 import java.util.Objects;
 
+
+@Deprecated
 public record PageKey<K>(int pageNum, int pageSize, K queryKey) {
 
     @Override
