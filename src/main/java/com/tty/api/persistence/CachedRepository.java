@@ -1,5 +1,6 @@
 package com.tty.api.persistence;
 
+import com.tty.api.Log;
 import com.tty.api.persistence.cache.CachePolicy;
 import com.tty.api.persistence.cache.RepositoryCache;
 import com.tty.api.persistence.model.BeanAccess;
@@ -10,7 +11,6 @@ import com.tty.api.persistence.result.ChangeSet;
 import com.tty.api.dto.PageResult;
 
 import com.github.benmanes.caffeine.cache.Ticker;
-import com.tty.api.persistence.cache.CacheTrace;
 
 import java.time.Duration;
 import java.util.*;
@@ -19,6 +19,7 @@ import java.util.function.*;
 
 public final class CachedRepository<T, ID> implements AutoCloseable {
 
+    private final Log log;
     private final EntityStore<T, ID> store;
     private final EntityModel<T, ID> model;
     private final RepositoryCache<T> cache;
@@ -29,22 +30,15 @@ public final class CachedRepository<T, ID> implements AutoCloseable {
     private int active;
     private boolean closing, closingStore;
 
-    public CachedRepository(EntityStore<T, ID> store) {
-        this(store, CachePolicy.defaults(), ForkJoinPool.commonPool(), Ticker.systemTicker());
+    public CachedRepository(Log log, EntityStore<T, ID> store) {
+        this(log, store, CachePolicy.defaults(), ForkJoinPool.commonPool(), Ticker.systemTicker());
     }
 
-    public CachedRepository(EntityStore<T, ID> store, CacheTrace trace) {
-        this(store, CachePolicy.defaults(), ForkJoinPool.commonPool(), Ticker.systemTicker(), trace);
-    }
-
-    public CachedRepository(EntityStore<T, ID> store, CachePolicy policy, Executor writeExecutor, Ticker ticker) {
-        this(store, policy, writeExecutor, ticker, CacheTrace.NONE);
-    }
-
-    public CachedRepository(EntityStore<T, ID> store, CachePolicy policy, Executor writeExecutor, Ticker ticker, CacheTrace trace) {
+    public CachedRepository(Log log, EntityStore<T, ID> store, CachePolicy policy, Executor writeExecutor, Ticker ticker) {
+        this.log = log;
         this.store = Objects.requireNonNull(store);
         this.model = Objects.requireNonNull(store.model());
-        this.cache = new RepositoryCache<>(this.model, policy, Objects.requireNonNull(ticker), Objects.requireNonNull(trace));
+        this.cache = new RepositoryCache<>(log, this.model, policy, Objects.requireNonNull(ticker));
         this.writeExecutor = Objects.requireNonNull(writeExecutor);
     }
 

@@ -1,5 +1,6 @@
 package com.tty.api.persistence.cache;
 
+import com.tty.api.Log;
 import com.tty.api.persistence.model.EntityModel;
 import com.tty.api.persistence.query.Query;
 import com.tty.api.persistence.result.ChangeSet;
@@ -14,6 +15,7 @@ import java.util.function.Supplier;
 
 
 public final class RepositoryCache<T> {
+
     public enum Kind {
         ONE,
         ALL,
@@ -34,9 +36,9 @@ public final class RepositoryCache<T> {
         }
     }
 
+    private final Log log;
     private final Object lock = new Object();
     private final EntityModel<T, ?> model;
-    private final CacheTrace trace;
     private final String entityName;
     private final Cache<Key<T>, Entry<T>> singles, collections;
     private final Map<Key<T>, Entry<T>> entries = new HashMap<>();
@@ -44,20 +46,11 @@ public final class RepositoryCache<T> {
     private final Set<Key<T>> unscoped = new HashSet<>();
     private final Queue<Entry<T>> removed = new ConcurrentLinkedQueue<>();
 
-
     private record Slot<E>(CompletableFuture<Object> hit, Entry<E> entry) {}
 
-    public RepositoryCache(EntityModel<T, ?> model, CachePolicy policy) {
-        this(model, policy, Ticker.systemTicker());
-    }
-
-    public RepositoryCache(EntityModel<T, ?> model, CachePolicy policy, Ticker ticker) {
-        this(model, policy, ticker, CacheTrace.NONE);
-    }
-
-    public RepositoryCache(EntityModel<T, ?> model, CachePolicy policy, Ticker ticker, CacheTrace trace) {
+    public RepositoryCache(Log log, EntityModel<T, ?> model, CachePolicy policy, Ticker ticker) {
+        this.log = log;
         this.model = Objects.requireNonNull(model);
-        this.trace = Objects.requireNonNull(trace);
         this.entityName = model.entityType().getSimpleName();
         this.singles = this.build(policy.singleEntries(), policy, ticker);
         this.collections = this.build(policy.collectionEntries(), policy, ticker);
@@ -149,7 +142,7 @@ public final class RepositoryCache<T> {
 
     public CompletableFuture<Object> load(Key<T> key, Supplier<CompletableFuture<Object>> loader) {
         var slot = this.acquire(key);
-        this.trace.lookup(this.entityName, key.kind().name(), key.query(), key.page(), key.size(), slot.hit() != null);
+        this.logLookup(this.entityName, key.kind().name(), key.query(), key.page(), key.size(), slot.hit() != null);
 
         if (slot.hit() != null) {
             return slot.hit();
@@ -193,7 +186,7 @@ public final class RepositoryCache<T> {
             this.drain();
             value = entry == null ? null : entry.value;
         }
-        this.trace.lookup(this.entityName, key.kind().name(), key.query(), key.page(), key.size(), value != null);
+        this.logLookup(this.entityName, key.kind().name(), key.query(), key.page(), key.size(), value != null);
 
         return value;
     }
@@ -228,7 +221,7 @@ public final class RepositoryCache<T> {
             this.drain();
 
         }
-        this.trace.invalidate(this.entityName, invalidated, changes.changes().size());
+        this.logInvalidate(this.entityName, invalidated, changes.changes().size());
     }
 
     public void clear() {
@@ -249,6 +242,18 @@ public final class RepositoryCache<T> {
             this.drain();
             return entries.size();
         }
+    }
+
+    private void logLookup(String entity, String kind, Query<?> query, int page, int size, boolean hit) {
+        if ("PAGE".equals(kind)) {
+            this.log.debug("[cache] {} {} {} {} page={} size={}", entity, kind, hit ? "HIT" : "MISS", query, page, size);
+        } else {
+            this.log.debug("[cache] {} {} {} {}", entity, kind, hit ? "HIT" : "MISS", query);
+        }
+    }
+
+    public void logInvalidate(String entity, int invalidated, int changes) {
+        this.log.debug(entity, invalidated, changes);
     }
 
 }
