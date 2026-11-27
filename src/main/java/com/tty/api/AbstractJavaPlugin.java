@@ -38,6 +38,11 @@ public abstract class AbstractJavaPlugin extends JavaPlugin {
     @Getter
     private boolean debug = false;
 
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+        this.log.setDebug(debug);
+    }
+
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
